@@ -1,542 +1,388 @@
-import requests
-import os
+#!/usr/bin/env python3
 import argparse
+import os
+import re
+import sys
+import tempfile
+import zipfile
 import shutil
-import tomli
-from selectolax.parser import HTMLParser
-from download_utils import download_images_parallel
-from playwright.sync_api import sync_playwright
+import concurrent.futures
+import random
+import time
+import html
+import unicodedata
+from urllib.parse import quote_plus
+import cloudscraper
 
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+PARALLEL_DOWNLOAD = 99
 
-def search_manga(title):
-    url = "https://weebcentral.com/search/simple"
-    querystring = {"location": "main"}
-    payload = f"text={title}"
-    headers = {
-        "content-type": "application/x-www-form-urlencoded",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
-    }
+scraper = cloudscraper.create_scraper()
+scraper.headers.update({"User-Agent": USER_AGENT})
 
-    response = requests.request(
-        "POST", url, data=payload, headers=headers, params=querystring
-    )
+def vprint(*args, **kwargs):
+    if VERBOSE:
+        print(*args, **kwargs)
 
-    # Parse HTML response
-    parser = HTMLParser(response.text)
+def ensure_dirs(base_dir):
+    os.makedirs(base_dir, exist_ok=True)
 
-    # Find all manga links in search results
-    search_results = parser.css("#quick-search-result a")
-
-    if search_results:
-        # Get the first result
-        first_result = search_results[0]
-        manga_url = first_result.attributes.get("href")
-        manga_title = first_result.css_first("div.flex-1").text().strip()
-        print(f"Found manga: {manga_title}")
-        print(f"URL: {manga_url}")
-        return manga_url
-
-    print("No manga found in search results")
-    return None
-
-
-def extract_series_id(manga_url):
-    # Extract the series ID from the URL
-    # Example: from https://weebcentral.com/series/01J76XYFM1TWGNNQ2Y2T8V7E8Y/Wistoria-Wand-and-Sword
-    # get 01J76XYFM1TWGNNQ2Y2T8V7E8Y
-    parts = manga_url.split("/")
-    for part in parts:
-        if len(part) == 26 and part.isalnum():  # Series IDs are 26 characters long
-            return part
-    return None
-
-
-def get_manga_slug(manga_url):
-    # Extract the manga title slug from the URL
-    parts = manga_url.split("/")
-    if len(parts) >= 6:  # URL format: https://weebcentral.com/series/ID/SLUG
-        return parts[-1]
-    return None
-
-
-def get_base_url(manga_url):
-    # Get the base URL without the title slug
-    series_id = extract_series_id(manga_url)
-    if series_id:
-        return f"https://weebcentral.com/series/{series_id}/"
-    return None
-
-
-def get_rss_url(manga_url):
-    # Construct the RSS feed URL using the series ID
-    series_id = extract_series_id(manga_url)
-    if series_id:
-        return f"https://weebcentral.com/series/{series_id}/rss"
-    return None
-
-
-def get_chapter_list_url(manga_url):
-    # Construct the full chapter list URL using the base URL
-    base_url = get_base_url(manga_url)
-    if base_url:
-        return f"{base_url}full-chapter-list"
-    return None
-
-
-def get_chapters_from_list(chapter_list_url):
-    """Get chapter links from the full chapter list page"""
-    headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
-    }
-
-    chapters = []
+def log_not_found(msg, output_dir):
     try:
-        vprint(f"\nDEBUG: Fetching chapter list from URL: {chapter_list_url}")
-        response = requests.get(chapter_list_url, headers=headers)
-        response.raise_for_status()
-
-        parser = HTMLParser(response.text)
-        chapter_links = parser.css("a[href*='/chapters/']")
-        vprint(f"DEBUG: Found {len(chapter_links)} raw chapter links on page")
-
-        for link in chapter_links:
-            # Get raw title and clean it
-            title = link.text()
-            # Clean up the title by removing extra whitespace and CSS/HTML content
-            cleaned_title = " ".join(
-                [
-                    line.strip()
-                    for line in title.split("\n")
-                    if line.strip()
-                    and not line.strip().startswith(".")  # Skip CSS
-                    and not line.strip().startswith("{")  # Skip CSS
-                    and not line.strip().startswith("2024")  # Skip dates
-                ]
-            ).strip()
-
-            url = link.attributes.get("href")
-            vprint(f"\nDEBUG: Processing link - Cleaned Title: {cleaned_title}")
-            vprint(f"DEBUG: Link URL: {url}")
-
-            # Extract chapter number from cleaned title
-            chapter_num = None
-            if "Chapter" in cleaned_title:
-                parts = cleaned_title.split("Chapter")
-                format_type = "Chapter"
-            elif "Episode" in cleaned_title:
-                parts = cleaned_title.split("Episode")
-                format_type = "Episode"
-            elif "Days" in cleaned_title:
-                parts = cleaned_title.split("Days")
-                format_type = "Days"
-            else:
-                parts = None
-                format_type = None
-                vprint("DEBUG: No recognized chapter format in title")
-
-            if parts and len(parts) > 1:
-                num_part = parts[-1].strip()
-                vprint(
-                    f"DEBUG: Found '{format_type}' format - Extracted number part: '{num_part}'"
-                )
-                # Only use the first number found
-                num_part = num_part.split()[0]
-                if num_part.replace(".", "").isdigit():
-                    chapter_num = num_part
-                    vprint(f"DEBUG: Valid chapter number found: {chapter_num}")
-
-            if chapter_num:
-                chapters.append({"chapter": chapter_num, "url": url})
-                vprint(f"DEBUG: Added chapter {chapter_num} from {url}")
-
-        # Sort chapters numerically
-        sorted_chapters = sorted(
-            chapters,
-            key=lambda x: float(x["chapter"])
-            if x["chapter"].replace(".", "").isdigit()
-            else 0,
-        )
-        vprint(f"\nDEBUG: Final chapter count from list: {len(sorted_chapters)}")
-        return sorted_chapters
-
+        logfile = os.path.join(output_dir, 'not_found.log')
+        with open(logfile, 'a', encoding='utf-8') as f:
+            f.write(msg + "\n")
     except Exception as e:
-        print(f"Error getting chapter list: {str(e)}")
-        return []
+        print(f"[WARN] Could not write to not_found.log: {e}")
 
+def get_series_id_from_query(query, output_dir):
+    encoded = quote_plus(query)
+    url = f"https://weebcentral.com/search/data?author=&text={encoded}&sort=Best%20Match&order=Descending&official=Any&anime=Any&adult=Any&display_mode=Full%20Display"
+    resp = scraper.get(url)
+    results = re.findall(r'/series/([^"/]+/[^"]+)', resp.text)
+    if not results:
+        msg = f"NOT FOUND: {query}"
+        print(msg)
+        log_not_found(msg, output_dir)
+        return None, None
+    # Deduplicate (preserve order)
+    seen = set()
+    unique_results = []
+    for r in results:
+        if r not in seen:
+            seen.add(r)
+            unique_results.append(r)
+    if not unique_results:
+        msg = f"NO UNIQUE LINKS: {query}"
+        print(msg)
+        log_not_found(msg, output_dir)
+        return None, None
+    if len(unique_results) > 1:
+        msg = f"MULTIPLE UNIQUE: {query} => {unique_results}"
+        print(f"Warning: Multiple unique search results for '{query}', picking the first: {unique_results[0]}")
+        log_not_found(msg, output_dir)
+    series_id, series_title = unique_results[0].split('/')
+    return series_id, series_title
 
-def get_chapter_links(rss_url):
-    import xmltodict
-
-    headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
-    }
-
-    response = requests.get(rss_url, headers=headers)
-    response.raise_for_status()
-
-    # Parse XML response
-    rss_data = xmltodict.parse(response.text)
-
+def fetch_chapter_list(series_id):
+    series_id = series_id.upper()
+    url = f"https://weebcentral.com/series/{series_id}/full-chapter-list"
+    resp = scraper.get(url)
+    pattern = re.compile(r'>([#A-Za-z ]+) (\d+\.?\d*)[^\']*\'([A-Z0-9]+)')
     chapters = []
-    items = rss_data["rss"]["channel"].get("item", [])
-    if not isinstance(items, list):
-        items = [items]
+    for m in pattern.finditer(resp.text):
+        chap_type = m.group(1).strip()
+        chap_num = m.group(2)
+        chap_id = m.group(3)
+        chapters.append((chap_type, chap_num, chap_id))
+    chapters.sort(key=lambda x: float(x[1]), reverse=True)
+    return chapters
 
-    vprint(f"\nDEBUG: Found {len(items)} items in RSS feed")
-
-    for item in items:
-        title = item["title"]
-        url = item["link"]
-        vprint(f"DEBUG: Processing RSS item: {title} -> {url}")
-
-        # Extract chapter number from title
-        # Handle both "Chapter X" and "Days X" formats
-        chapter_num = None
-
-        # For titles like "Sakamoto Days Days 196"
-        if "Days" in title:
-            parts = title.split("Days")
-            if len(parts) > 1:
-                num_part = parts[-1].strip()  # Get the last number after "Days"
-                if num_part.replace(".", "").isdigit():
-                    chapter_num = num_part
-        # For titles with "Chapter X" format
-        elif "Chapter" in title:
-            parts = title.split("Chapter")
-            if len(parts) > 1:
-                num_part = parts[-1].strip()
-                if num_part.replace(".", "").isdigit():
-                    chapter_num = num_part
-
-        if chapter_num:
-            chapters.append({"chapter": chapter_num, "url": url})
-            vprint(f"DEBUG: Added chapter {chapter_num} from {url}")
-
-    # Sort chapters numerically
-    sorted_chapters = sorted(
-        chapters,
-        key=lambda x: float(x["chapter"])
-        if x["chapter"].replace(".", "").isdigit()
-        else 0,
-    )
-    vprint(f"\nDEBUG: Final chapter count: {len(sorted_chapters)}")
-    return sorted_chapters
-
-
-def extract_chapter_images(chapter_url, chapter_num):
-    """Extract image links from a chapter page using Playwright"""
-    image_links = []
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(viewport={"width": 1920, "height": 1080})
-        page = context.new_page()
-
-        try:
-            # Navigate to chapter URL and wait for content to load
-            vprint(f"\nDEBUG: Fetching chapter from URL: {chapter_url}")
-            page.goto(chapter_url, wait_until="networkidle", timeout=60000)
-
-            # Wait for images to load
-            page.wait_for_selector("img", state="visible", timeout=30000)
-
-            # Extract all image URLs
-            images = page.query_selector_all("img")
-            for img in images:
-                img_url = img.get_attribute("src")
-                if img_url and img_url.lower().endswith(".png"):
-                    # Skip brand.png
-                    if not img_url.endswith("/static/images/brand.png"):
-                        image_links.append(img_url)
-                        vprint(f"Found image: {img_url}")
-
-            vprint(f"\nFound {len(image_links)} images in Chapter {chapter_num}")
-            return image_links
-
-        except Exception as e:
-            print(f"Error extracting chapter images: {str(e)}")
-            return []
-        finally:
-            context.close()
-            browser.close()
-
-
-def send_error_notification(error_message, manga_title=None):
-    """Send error notification to the notification endpoint if configured"""
+def get_series_title_by_id(series_id):
+    """Fetches the official manga title from the series page using the series_id, formats for filesystem/folder."""
+    url = f"https://weebcentral.com/series/{series_id}"
     try:
-        if manga_title:
-            error_message = f"Error downloading {manga_title}: {error_message}"
-
-        # Try to load config file
-        try:
-            with open("config.toml", "rb") as f:
-                config = tomli.load(f)
-        except (FileNotFoundError, tomli.TOMLDecodeError):
-            vprint("No valid config.toml found - skipping notification")
-            return
-
-        # Check if ntfy section and URL exist and are not empty
-        if not config.get("ntfy", {}).get("ntfy_url"):
-            vprint("No ntfy URL configured - skipping notification")
-            return
-
-        notification_url = config["ntfy"]["ntfy_url"]
-        response = requests.post(notification_url, data={"message": error_message})
-        response.raise_for_status()
-        vprint(f"Sent error notification: {error_message}")
+        resp = scraper.get(url)
+        m = re.search(r'<h1[^>]*>([^<]+)</h1>', resp.text)
+        if m:
+            title = html.unescape(m.group(1).strip())
+            title = title.replace(" ", "-")
+            title = unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode()
+            title = re.sub(r'[^A-Za-z0-9\-_]', '', title)
+            title = re.sub(r'-+', '-', title).strip('-')
+            return title
     except Exception as e:
-        print(f"Failed to send error notification: {str(e)}")
+        vprint(f"Could not fetch manga title for series_id {series_id}: {e}")
+    return series_id
+
+def get_latest_downloaded_chapter(base_dir, series_title, zip_mode=False):
+    out_dir = os.path.join(base_dir, series_title)
+    if not os.path.exists(out_dir):
+        return None
+    chapter_nums = []
+    if zip_mode:
+        for f in os.listdir(out_dir):
+            m = re.match(r"vol_0*(\d+)(?:-(\d+))?\.zip$", f)
+            if m:
+                try:
+                    if m.group(2):
+                        val = float(f"{m.group(1)}.{m.group(2)}")
+                    else:
+                        val = float(m.group(1))
+                    chapter_nums.append(val)
+                except Exception:
+                    continue
+    else:
+        for f in os.listdir(out_dir):
+            m = re.match(rf"{re.escape(series_title)}-(\d+)(?:\.(\d+))?.*\.cbz$", f)
+            if m:
+                try:
+                    if m.group(2):
+                        val = float(f"{m.group(1)}.{m.group(2)}")
+                    else:
+                        val = float(m.group(1))
+                    chapter_nums.append(val)
+                except Exception:
+                    continue
+    return max(chapter_nums) if chapter_nums else None
+
+def chapter_already_downloaded(chap_num, out_dir):
+    """Return True if any zip for this chapter exists, ignoring zero-padding or decimals."""
+    if not os.path.exists(out_dir):
+        return False  # Directory not there means nothing is downloaded
+    base = int(float(chap_num))
+    patt = re.compile(rf"vol_0*{base}(?:-[0-9]+)?\.zip$")
+    for fname in os.listdir(out_dir):
+        if patt.fullmatch(fname):
+            return True
+    return False
 
 
-def vprint(*print_args, **kwargs):
-    """Print only if verbose mode is enabled"""
-    if args.verbose:
-        print(*print_args, **kwargs)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Manga downloader script")
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        default="manga_downloads",
-        help="Output directory for downloaded manga (default: manga_downloads)",
-    )
-    parser.add_argument(
-        "-z",
-        "--zip",
-        action="store_true",
-        help="Create zip archives for chapters in volume format",
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose debug output"
-    )
-    parser.add_argument(
-        "--no-skip", action="store_true", help="Do not skip existing zip files"
-    )
-    parser.add_argument(
-        "--chapter-filter",
-        type=float,
-        metavar="N",
-        help="Download only chapters ABOVE the given number (Example: --chapter-filter 46 will download chapters 47 and up)",
-    )
-    parser.add_argument(
-        "-l",
-        "--latest",
-        action="store_true",
-        help="Continue from latest downloaded chapter (automatically detects highest chapter number from existing zip files)",
-    )
-    parser.add_argument(
-        "-t",
-        "--title",
-        type=str,
-        default="wistoria",
-        help="Manga title to search for (default: wistoria)",
-    )
-    parser.add_argument(
-        "-b",
-        "--bulk",
-        type=str,
-        help="Path to text file containing manga titles (one per line)",
-    )
-    args = parser.parse_args()
-
-    def process_manga_title(title, filter_chapter=None):
-        """Process a single manga title"""
+def download_image(img_url, dest_folder, referer=None, max_sleep=120, max_retries=5):
+    retry_count = 0
+    while retry_count < max_retries:
         try:
-            # Replace hyphens with spaces in the manga title
-            search_title = title.replace("-", " ")
-            print(f"\nProcessing manga: {search_title}")
-
-            manga_url = search_manga(search_title)
-            if not manga_url:
-                error_msg = f"Could not find manga: {search_title}"
-                print(error_msg)
-                send_error_notification(error_msg)
+            headers = {"Referer": referer or "https://weebcentral.com/"}
+            resp = scraper.get(img_url, headers=headers, stream=True, timeout=15)
+            if resp.ok:
+                filename = os.path.basename(img_url.split('?')[0])
+                out_path = os.path.join(dest_folder, filename)
+                with open(out_path, 'wb') as f:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                vprint(f"Downloaded: {img_url}")
                 return
         except Exception as e:
-            error_msg = f"Error searching for manga: {str(e)}"
-            print(error_msg)
-            send_error_notification(error_msg)
+            vprint(f"Error downloading {img_url}: {e}")
+            error_text = str(e)
+            if (
+                "beacon" in img_url
+                or "connection refused" in error_text.lower()
+                or "max retries exceeded" in error_text.lower()
+            ):
+                sleep_time = random.randint(15, max_sleep)
+                print(f"\n[WARN] Hit a connection error on {img_url}. Sleeping for {sleep_time}s and retrying (retry {retry_count + 1}/5)\n")
+                time.sleep(sleep_time)
+                retry_count += 1
+            else:
+                break
+    vprint(f"[FAIL] Giving up on {img_url} after {max_retries} retries.")
+
+def get_vol_and_chapter_names(chap_num):
+    base = int(float(chap_num))
+    dec = None
+    if '.' in str(chap_num):
+        dec = str(chap_num).split('.')[-1]
+        if dec != "0":
+            return f"vol_{base}-{dec}", f"chapter_{base}-{dec}"
+    # always pad with 3 digits
+    return f"vol_{base:03d}", f"chapter_{base:03d}"
+
+def has_images(folder):
+    exts = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
+    for f in os.listdir(folder):
+        if f.lower().endswith(exts):
+            return True
+    return False
+
+def download_chapter_images(chapter_id, chapter_num, chapter_type, series_title, outdir, chapter_dir_name, sequence=False, max_sleep=120):
+    chapter_dir = os.path.join(outdir, chapter_dir_name)
+    os.makedirs(chapter_dir, exist_ok=True)
+    url = f"https://weebcentral.com/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
+    resp = scraper.get(url)
+    img_urls = re.findall(r'src="([^"]+)"', resp.text)
+    if not img_urls:
+        print(f"No images found in chapter {chapter_num}!")
+        return None
+    if sequence:
+        for img_url in img_urls:
+            download_image(img_url, chapter_dir, url, max_sleep=max_sleep)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_DOWNLOAD) as executor:
+            futures = [executor.submit(download_image, img_url, chapter_dir, url, max_sleep) for img_url in img_urls]
+            for future in concurrent.futures.as_completed(futures):
+                pass
+    return chapter_dir
+
+def zip_chapter_cbz(tmp_dir, base_dir, series_title, chapter_num, chapter_type):
+    out_dir = os.path.join(base_dir, series_title)
+    os.makedirs(out_dir, exist_ok=True)
+    if not has_images(tmp_dir):
+        print(f"Warning: No images found in {tmp_dir} (skipping archive)")
+        shutil.rmtree(tmp_dir)
+        return
+    out_file = os.path.join(out_dir, f"{series_title}-{chapter_num}{('-'+chapter_type) if chapter_type else ''}.cbz")
+    with zipfile.ZipFile(out_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(tmp_dir):
+            for file in files:
+                zf.write(os.path.join(root, file), arcname=file)
+    print(f"Wrote {out_file}")
+    shutil.rmtree(tmp_dir)
+
+def zip_chapter_zip(chapter_dir, out_dir, vol_name):
+    if not has_images(chapter_dir):
+        print(f"Warning: No images found in {chapter_dir} (skipping archive)")
+        shutil.rmtree(chapter_dir)
+        return
+    zip_path = os.path.join(out_dir, f"{vol_name}.zip")
+    shutil.make_archive(os.path.splitext(zip_path)[0], "zip", chapter_dir)
+    print(f"Created zip archive: {zip_path}")
+    shutil.rmtree(chapter_dir)
+
+def download_chapters(chapters, chapters_to_download, base_dir, series_title, zip_mode, verbose, sequence=False, rate_limit_every=10, max_sleep=120, is_fresh=True):
+    out_dir = os.path.join(base_dir, series_title)
+    chap_counter = 0
+    for chap_type, chap_num, chap_id in reversed(chapters):
+        chap_num_str = str(float(chap_num)).rstrip('0').rstrip('.') if '.' in chap_num else chap_num
+        if chapters_to_download is not None and (chap_num not in chapters_to_download and chap_num_str not in chapters_to_download):
+            continue
+        ct = "" if chap_type in ["Chapter", "#"] else chap_type
+        vol_name, chapter_dir_name = get_vol_and_chapter_names(chap_num)
+        # --- skip if already exists (with any padding) ---
+        if zip_mode and chapter_already_downloaded(chap_num, out_dir):
+            print(f"Skipping already-downloaded chapter {chap_num} (zip found)")
+            continue
+        print(f"Downloading chapter {chap_num}")
+        if zip_mode:
+            chapter_dir = download_chapter_images(chap_id, chap_num, ct, series_title, out_dir, chapter_dir_name, sequence=sequence, max_sleep=max_sleep)
+            if chapter_dir:
+                zip_chapter_zip(chapter_dir, out_dir, vol_name)
+        else:
+            tmp_dir = tempfile.mkdtemp(prefix=f"{series_title}-{chap_num}_")
+            chapter_dir = download_chapter_images(chap_id, chap_num, ct, series_title, tmp_dir, chapter_dir_name, sequence=sequence, max_sleep=max_sleep)
+            if chapter_dir:
+                zip_chapter_cbz(chapter_dir, base_dir, series_title, chap_num, ct)
+        chap_counter += 1
+        if is_fresh and chap_counter % rate_limit_every == 0:
+            wait = random.randint(15, max_sleep)
+            print(f"\n[INFO] Rate limiting: sleeping for {wait} seconds after {chap_counter} chapters\n")
+            time.sleep(wait)
+
+def process_manga_title(title, args, chapters_to_download=None):
+    output_dir = os.path.abspath(args.output)
+    if getattr(args, "series_id", None):
+        series_id = args.series_id.strip()
+        chapters = fetch_chapter_list(series_id)
+        if not chapters:
+            print(f"No chapters found for series id '{series_id}'.")
+            return
+        series_title = get_series_title_by_id(series_id)
+        print(f"\nProcessing series id: {series_id} (title: {series_title})")
+    else:
+        search_title = title.replace("-", " ").strip()
+        series_id, series_title = get_series_id_from_query(search_title, output_dir)
+        if not series_id:
+            print(f"Skipping '{title}': not found.")
+            return
+        chapters = fetch_chapter_list(series_id)
+        if not chapters:
+            print(f"No chapters found for '{title}'.")
             return
 
-        # Create manga-specific directory using the slug
-        manga_slug = get_manga_slug(manga_url)
-        manga_dir = os.path.join(args.output, manga_slug) if manga_slug else args.output
+    base_dir = output_dir
+    ensure_dirs(base_dir)
+    out_dir = os.path.join(base_dir, series_title)
+    is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
 
-        if args.latest and os.path.exists(manga_dir):
-            # Find zip files only in this manga's directory
-            zip_files = [
-                f
-                for f in os.listdir(manga_dir)
-                if f.startswith("vol_") and f.endswith(".zip")
-            ]
-
-            if zip_files:
-                chapter_numbers = []
-                for zip_file in zip_files:
-                    try:
-                        chapter_num = float(zip_file[4:-4])
-                        chapter_numbers.append(chapter_num)
-                    except ValueError:
-                        continue
-
-                if chapter_numbers:
-                    filter_chapter = max(chapter_numbers)
-                    print(f"Found highest chapter {filter_chapter} in {manga_dir}")
-                    print(f"Will only download chapters above chapter {filter_chapter}")
-
-        # Create manga-specific directory
-        os.makedirs(manga_dir, exist_ok=True)
-
-        # Pre-scan existing zip files
-        existing_zips = set()
-        if args.zip and not args.no_skip and os.path.exists(manga_dir):
-            existing_zips = {f for f in os.listdir(manga_dir) if f.endswith(".zip")}
-            vprint(f"Found {len(existing_zips)} existing zip files")
-
-        # Rest of your existing manga processing code...
-        has_existing_chapters = False
-        if os.path.exists(manga_dir):
-            dir_contents = os.listdir(manga_dir)
-            has_existing_chapters = any(
-                f.startswith(("vol_", "chapter_")) for f in dir_contents
-            )
-
-        if has_existing_chapters:
-            print("Existing manga chapters found, using RSS feed for updates...")
-            rss_url = get_rss_url(manga_url)
-            print(f"RSS URL: {rss_url}")
-            chapters = get_chapter_links(rss_url)
+    if args.latest and chapters_to_download is None:
+        latest = get_latest_downloaded_chapter(base_dir, series_title, zip_mode=args.zip)
+        if latest is not None:
+            chapters_to_download = set()
+            for chap in chapters:
+                try:
+                    chap_float = float(chap[1])
+                    if chap_float > latest:
+                        chapters_to_download.add(chap[1])
+                except Exception:
+                    continue
+            if not chapters_to_download:
+                print(f"No new chapters after {latest}")
+                return
+            print(f"Will download chapters after {latest}: {sorted(chapters_to_download)}")
         else:
-            print("New manga or empty folder, fetching full chapter list...")
-            chapter_list_url = get_chapter_list_url(manga_url)
-            print(f"Chapter list URL: {chapter_list_url}")
-            chapters = get_chapters_from_list(chapter_list_url)
+            print("No chapters found in output directory; will download ALL chapters.")
+            chapters_to_download = None
+    elif chapters_to_download is None and not args.latest:
+        chapters_to_download = None  # download all
 
-        # Process chapters...
-        if chapters:
-            min_chapter = min(
-                float(c["chapter"])
-                for c in chapters
-                if c["chapter"].replace(".", "").isdigit()
-            )
-            max_chapter = max(
-                float(c["chapter"])
-                for c in chapters
-                if c["chapter"].replace(".", "").isdigit()
-            )
-            print(f"\nFound chapters from {min_chapter} to {max_chapter}")
-            if filter_chapter:
-                print(
-                    f"Will download chapters from {filter_chapter + 1} to {max_chapter}"
-                )
+    vprint(f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {args.zip})")
+    download_chapters(
+        chapters,
+        chapters_to_download,
+        base_dir,
+        series_title,
+        zip_mode=args.zip,
+        verbose=args.verbose,
+        sequence=args.sequence,
+        rate_limit_every=args.rlc,
+        max_sleep=args.max_sleep,
+        is_fresh=is_fresh
+    )
 
-            print("\nChapters found:")
-            for chapter in chapters:
-                print(f"Chapter {chapter['chapter']} - {chapter['url']}")
-                try:
-                    chapter_num = float(chapter["chapter"])
+def parse_chapter_arg(chapter_arg):
+    if not chapter_arg:
+        return None
+    chapters = set()
+    for part in chapter_arg.split(","):
+        p = part.strip()
+        if p:
+            chapters.add(p)
+    return chapters if chapters else None
 
-                    if filter_chapter is not None:
-                        if chapter_num <= filter_chapter:
-                            vprint(
-                                f"Skipping chapter {chapter_num} (not higher than {filter_chapter})"
-                            )
-                            continue
-                        else:
-                            print(f"Processing chapter {chapter_num}")
-                except ValueError:
-                    print(
-                        f"Warning: Could not parse chapter number from {chapter['chapter']}"
-                    )
-                    continue
+def main():
+    global VERBOSE
+    parser = argparse.ArgumentParser(description="Manga downloader script (WeebCentral)")
+    parser.add_argument('query', nargs='*', help="Manga title to search for (ignored if --bulk or --series-id is used)")
+    parser.add_argument('-c', '--chapter', type=str, default=None, help="Specific chapter(s) to download, e.g. 12,12.5,13 (comma-separated)")
+    parser.add_argument('-o', '--output', dest='output', default="./manga_downloads", help="Output directory for downloads")
+    parser.add_argument('-l', '--latest', action='store_true', help="Download only chapters after the latest one in the output directory")
+    parser.add_argument('-z', '--zip', action='store_true', help="Create zip archives for chapters (vol_NNN.zip)")
+    parser.add_argument('-v', '--verbose', action='store_true', help="Enable verbose debug output")
+    parser.add_argument('-b', '--bulk', type=str, help="Path to text file containing manga titles (one per line; you can use seriesid=optional-title)")
+    parser.add_argument('-s', '--sequence', action='store_true', help="Download images in sequence (disable parallel downloading, useful for slow or rate-limited sites)")
+    parser.add_argument('--rlc', type=int, default=10, help="How many chapters between random rate limits (default: 10)")
+    parser.add_argument('--max-sleep', type=int, default=120, help="Maximum sleep time (seconds) for rate limit or error retry (default: 120)")
+    parser.add_argument('-id', '--series-id', type=str, help="Direct WeebCentral series ID (bypasses search)")
+    args = parser.parse_args()
+    VERBOSE = args.verbose
 
-                # Handle chapter versions
-                base_chapter = int(float(chapter_num))
-                version = None
-                if "." in str(chapter_num):
-                    version = int(str(chapter_num).split(".")[1])
-
-                vol_name = f"vol_{base_chapter:03d}"
-                if version:
-                    vol_name = f"{vol_name}-{version}"
-                zip_filename = f"{vol_name}.zip"
-
-                if args.zip and not args.no_skip and zip_filename in existing_zips:
-                    vprint(f"Skipping existing zip archive: {zip_filename}")
-                    continue
-
-                try:
-                    image_links = extract_chapter_images(
-                        chapter["url"], chapter["chapter"]
-                    )
-                    if not image_links:
-                        error_msg = f"No images found in Chapter {chapter['chapter']}"
-                        print(error_msg)
-                        send_error_notification(error_msg, search_title)
-                        continue
-
-                    vprint(
-                        f"Found {len(image_links)} images in Chapter {chapter['chapter']}"
-                    )
-
-                    chapter_dir = os.path.join(
-                        manga_dir, f"chapter_{chapter['chapter']}"
-                    )
-                    downloaded_files = download_images_parallel(
-                        image_links, chapter_dir
-                    )
-
-                    if not downloaded_files:
-                        error_msg = f"Failed to download any images for Chapter {chapter['chapter']}"
-                        print(error_msg)
-                        send_error_notification(error_msg, search_title)
-                        continue
-
-                    vprint(f"Successfully downloaded {len(downloaded_files)} images")
-                except Exception as e:
-                    error_msg = (
-                        f"Error processing Chapter {chapter['chapter']}: {str(e)}"
-                    )
-                    print(error_msg)
-                    send_error_notification(error_msg, search_title)
-                    continue
-
-                if args.zip:
-                    zip_base = os.path.join(manga_dir, vol_name)
-                    zip_path = f"{zip_base}.zip"
-                    print(f"Creating zip archive: {zip_path}")
-                    shutil.make_archive(zip_base, "zip", chapter_dir)
-                    shutil.rmtree(chapter_dir)
-
-    filter_chapter = args.chapter_filter
+    chapters_to_download = parse_chapter_arg(args.chapter)
 
     if args.bulk:
-        try:
-            # Try UTF-8 first, then fallback to other encodings
-            encodings = ["utf-8", "utf-16", "latin-1", "cp1252"]
-            manga_titles = None
-
-            for encoding in encodings:
-                try:
-                    with open(args.bulk, "r", encoding=encoding) as f:
-                        manga_titles = [line.strip() for line in f if line.strip()]
-                    print(f"Successfully read file using {encoding} encoding")
-                    break
-                except UnicodeDecodeError:
-                    continue
-
-            if manga_titles is None:
-                print("Error: Could not read file with any supported encoding")
-                exit(1)
-
-            print(f"Found {len(manga_titles)} manga titles in {args.bulk}")
-            for title in manga_titles:
-                process_manga_title(title, filter_chapter)
-        except FileNotFoundError:
-            print(f"Error: Could not find bulk file: {args.bulk}")
+        encodings = ["utf-8", "utf-16", "latin-1", "cp1252"]
+        manga_titles = None
+        for encoding in encodings:
+            try:
+                with open(args.bulk, "r", encoding=encoding) as f:
+                    manga_titles = [line.strip() for line in f if line.strip()]
+                print(f"Successfully read file using {encoding} encoding")
+                break
+            except UnicodeDecodeError:
+                continue
+        if manga_titles is None:
+            print("Error: Could not read file with any supported encoding")
             exit(1)
+        print(f"Found {len(manga_titles)} manga titles in {args.bulk}")
+
+        for line in manga_titles:
+            if '=' in line:
+                series_id = line.split('=', 1)[0].strip()
+                args.series_id = series_id
+                process_manga_title(series_id, args, chapters_to_download)
+                args.series_id = None  # Reset for next
+            else:
+                args.series_id = None
+                process_manga_title(line, args, chapters_to_download)
     else:
-        process_manga_title(args.title, filter_chapter)
+        if args.series_id:
+            process_manga_title(" ".join(args.query).strip() if args.query else args.series_id, args, chapters_to_download)
+        elif args.query:
+            title = " ".join(args.query).strip()
+            process_manga_title(title, args, chapters_to_download)
+        else:
+            print("No manga title specified!")
+            sys.exit(1)
+
+if __name__ == "__main__":
+    VERBOSE = False
+    main()
