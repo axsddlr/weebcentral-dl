@@ -72,12 +72,16 @@ class WeebCentralDownloader:
         series_id = series_id.upper()
         url = f"{WEEBCENTRAL_URL}/series/{series_id}/full-chapter-list"
         resp = self.scraper.get(url)
-        pattern = re.compile(r">([#A-Za-z ]+) (\d+\.?\d*)[^\\]*\'([A-Z0-9]+)")
+        # print(resp.text)
+        pattern = re.compile(
+            r'<span class="">([A-Za-z#]+)\s*([\d\.]+)</span>[\s\S]*?value="([A-Z0-9]+)"'
+        )
         chapters = [
             (m.group(1).strip(), m.group(2), m.group(3))
             for m in pattern.finditer(resp.text)
         ]
         chapters.sort(key=lambda x: float(x[1]), reverse=True)
+        # print(chapters)
         return chapters
 
     def get_series_title_by_id(self, series_id: str) -> str:
@@ -295,21 +299,20 @@ class WeebCentralDownloader:
 
         if self.config.latest and chapters_to_download is None:
             latest = self.get_latest_downloaded_chapter(series_title)
-            if latest is not None:
+            if latest is None:
+                print("No downloaded chapters found, downloading all chapters.")
+                # When -l is used and no chapters are downloaded, download all
+                chapters_to_download = {chap[1] for chap in chapters}
+            else:
                 chapters_to_download = {
                     chap[1] for chap in chapters if float(chap[1]) > latest
                 }
                 if not chapters_to_download:
-                    print(f"No new chapters after {latest}")
+                    print(f"No new chapters found after chapter {latest}.")
                     return
                 print(
-                    f"Will download chapters after {latest}: {sorted(list(chapters_to_download))}"
+                    f"Downloading new chapters after chapter {latest}: {sorted(list(chapters_to_download))}"
                 )
-            else:
-                print(
-                    "No chapters found in output directory; will download ALL chapters."
-                )
-                chapters_to_download = None
 
         self.vprint(
             f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})"
