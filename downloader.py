@@ -11,6 +11,7 @@ import html
 from urllib.parse import quote_plus
 import cloudscraper
 from typing import List, Optional, Tuple, Set
+from PIL import Image
 
 from utils import sanitize_title, get_vol_and_chapter_names, has_images
 
@@ -145,7 +146,7 @@ class WeebCentralDownloader:
                     for chunk in resp.iter_content(chunk_size=8192):
                         f.write(chunk)
                 self.vprint(f"Downloaded: {img_url}")
-                return
+                return out_path
             except Exception as e:
                 self.vprint(f"Error downloading {img_url}: {e}")
                 error_text = str(e).lower()
@@ -158,12 +159,14 @@ class WeebCentralDownloader:
                         f"\n[WARN] Connection error on {img_url}. Sleeping for {sleep_time}s and retrying...\n"
                     )
                     time.sleep(sleep_time)
+                    self.scraper = cloudscraper.create_scraper()
                     retry_count += 1
                 else:
                     break
         self.vprint(
             f"[FAIL] Giving up on {img_url} after {self.config.max_retries} retries."
         )
+        return None
 
     def download_chapter_images(
         self, chapter_id: str, chapter_num: str, outdir: str, chapter_dir_name: str
@@ -294,7 +297,7 @@ class WeebCentralDownloader:
             print(f"No chapters found for '{title or series_id}'.")
             return
 
-        self.download_cover_image(series_id, series_title)
+        self.download_cover_image_and_convert(series_id, series_title)
 
         out_dir = os.path.join(self.output_dir, series_title)
         is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
@@ -321,6 +324,18 @@ class WeebCentralDownloader:
         )
         self.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
 
+    def download_cover_image_and_convert(self, series_id: str, series_title: str):
+        cover_path = self.download_cover_image(series_id, series_title)
+        if cover_path and cover_path.endswith(".webp"):
+            try:
+                img = Image.open(cover_path).convert("RGB")
+                new_path = os.path.splitext(cover_path)[0] + ".jpg"
+                img.save(new_path, "jpeg")
+                os.remove(cover_path)
+                self.vprint(f"Converted {cover_path} to {new_path}")
+            except Exception as e:
+                self.vprint(f"Could not convert cover image {cover_path}: {e}")
+
     def download_cover_image(self, series_id: str, series_title: str):
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
@@ -330,6 +345,9 @@ class WeebCentralDownloader:
                 cover_url = m.group(1)
                 out_dir = os.path.join(self.output_dir, series_title)
                 os.makedirs(out_dir, exist_ok=True)
-                self.download_image(cover_url, out_dir, url)
+                return self.download_image(cover_url, out_dir, url)
         except Exception as e:
-            self.vprint(f"Could not download cover image for series_id {series_id}: {e}")
+            self.vprint(
+                f"Could not download cover image for series_id {series_id}: {e}"
+            )
+        return None
