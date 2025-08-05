@@ -294,6 +294,8 @@ class WeebCentralDownloader:
             print(f"No chapters found for '{title or series_id}'.")
             return
 
+        self.download_cover_image(series_id, series_title)
+
         out_dir = os.path.join(self.output_dir, series_title)
         is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
 
@@ -318,3 +320,16 @@ class WeebCentralDownloader:
             f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})"
         )
         self.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
+
+    def download_cover_image(self, series_id: str, series_title: str):
+        url = f"{WEEBCENTRAL_URL}/series/{series_id}"
+        try:
+            resp = self.scraper.get(url)
+            m = re.search(r'<source srcset="([^"]+)"', resp.text)
+            if m:
+                cover_url = m.group(1)
+                out_dir = os.path.join(self.output_dir, series_title)
+                os.makedirs(out_dir, exist_ok=True)
+                self.download_image(cover_url, out_dir, url)
+        except Exception as e:
+            self.vprint(f"Could not download cover image for series_id {series_id}: {e}")
