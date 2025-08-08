@@ -337,13 +337,17 @@ class WeebCentralDownloader:
                 self.vprint(f"Could not convert cover image {cover_path}: {e}")
 
     def download_cover_image(self, series_id: str, series_title: str):
+        out_dir = os.path.join(self.output_dir, series_title)
+        if os.path.exists(out_dir) and any(f.lower().endswith(".jpg") for f in os.listdir(out_dir)):
+            self.vprint(f"Cover image already exists for {series_title}, skipping download.")
+            return None
+
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
             resp = self.scraper.get(url)
             m = re.search(r'<source srcset="([^"]+)"', resp.text)
             if m:
                 cover_url = m.group(1)
-                out_dir = os.path.join(self.output_dir, series_title)
                 os.makedirs(out_dir, exist_ok=True)
                 return self.download_image(cover_url, out_dir, url)
         except Exception as e:
