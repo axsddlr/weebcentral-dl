@@ -95,8 +95,9 @@ def main():
             print(f"Found {len(manga_list)} manga titles in {args.bulk}")
             for line in manga_list:
                 if "=" in line:
-                    series_id, _ = line.split("=", 1)
+                    series_id, title = line.split("=", 1)
                     downloader.process_manga(
+                        title=title.strip(),
                         series_id=series_id.strip(),
                         chapters_to_download=chapters_to_download,
                     )

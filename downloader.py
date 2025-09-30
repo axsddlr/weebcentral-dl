@@ -277,7 +277,12 @@ class WeebCentralDownloader:
         series_id: Optional[str] = None,
         chapters_to_download: Optional[Set[str]] = None,
     ):
-        if series_id:
+        if series_id and title:
+            # Both provided (from bulk file format: series_id=title)
+            series_id = series_id.strip()
+            series_title = sanitize_title(title.strip())
+            print(f"\nProcessing series id: {series_id} (title: {series_title})")
+        elif series_id:
             series_id = series_id.strip()
             series_title = self.get_series_title_by_id(series_id)
             print(f"\nProcessing series id: {series_id} (title: {series_title})")
