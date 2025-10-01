@@ -83,6 +83,11 @@ def main():
         type=str,
         help="Direct WeebCentral series ID (bypasses search)",
     )
+    parser.add_argument(
+        "--en",
+        action="store_true",
+        help="Use English title from series page instead of URL slug",
+    )
     args = parser.parse_args()
 
     downloader = WeebCentralDownloader(args)

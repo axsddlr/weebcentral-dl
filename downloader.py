@@ -370,7 +370,11 @@ class WeebCentralDownloader:
         if series_id and title:
             # Both provided (from bulk file format: series_id=title)
             series_id = series_id.strip()
-            series_title = sanitize_title(title.strip())
+            # If --en flag is set, fetch English title from series page
+            if self.config.en:
+                series_title = self.get_series_title_by_id(series_id)
+            else:
+                series_title = sanitize_title(title.strip())
             print(f"\nProcessing series id: {series_id} (title: {series_title})")
         elif series_id:
             series_id = series_id.strip()
@@ -383,6 +387,9 @@ class WeebCentralDownloader:
                 print(f"Skipping '{title}': not found.")
                 return
             series_id, series_title = result
+            # If --en flag is set, fetch English title from series page
+            if self.config.en:
+                series_title = self.get_series_title_by_id(series_id)
         else:
             print("Error: No title or series_id provided.")
             return
