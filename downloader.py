@@ -25,7 +25,11 @@ class WeebCentralDownloader:
     def __init__(self, config: argparse.Namespace):
         self.config = config
         self.scraper = cloudscraper.create_scraper()
-        self.scraper.headers.update({"User-Agent": USER_AGENT})
+        self.scraper.headers.update({
+            "User-Agent": USER_AGENT,
+            "Accept": "*/*",
+            "HX-Request": "true",  # Enable HTMX/JSON responses
+        })
         self.output_dir = os.path.abspath(config.output)
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -73,7 +77,33 @@ class WeebCentralDownloader:
         series_id = series_id.upper()
         url = f"{WEEBCENTRAL_URL}/series/{series_id}/full-chapter-list"
         resp = self.scraper.get(url)
-        # print(resp.text)
+
+        # Try JSON API first
+        try:
+            data = resp.json()
+            chapters = []
+            for chap in data.get("chapters", []):
+                # Extract chapter type and number from title
+                title = chap.get("title", "")
+                # Match "Chapter 123" or "Episode 456" or "# 789"
+                match = re.search(r'([A-Za-z#]+)\s*([\d\.]+)', title)
+                if match:
+                    chap_type = match.group(1).strip()
+                    chap_num = match.group(2)
+                    # Extract chapter ID from URL
+                    chap_url = chap.get("url", "")
+                    chap_id_match = re.search(r'/chapters/([A-Z0-9]+)', chap_url)
+                    if chap_id_match:
+                        chap_id = chap_id_match.group(1)
+                        chapters.append((chap_type, chap_num, chap_id))
+            if chapters:
+                chapters.sort(key=lambda x: float(x[1]), reverse=True)
+                self.vprint(f"[JSON] Fetched {len(chapters)} chapters via JSON API")
+                return chapters
+        except (ValueError, KeyError) as e:
+            self.vprint(f"[JSON] Failed to parse JSON, falling back to HTML: {e}")
+
+        # Fallback to HTML regex parsing
         pattern = re.compile(
             r'<span class="">([A-Za-z#]+)\s*([\d\.]+)</span>[\s\S]*?value="([A-Z0-9]+)"'
         )
@@ -82,7 +112,7 @@ class WeebCentralDownloader:
             for m in pattern.finditer(resp.text)
         ]
         chapters.sort(key=lambda x: float(x[1]), reverse=True)
-        # print(chapters)
+        self.vprint(f"[HTML] Fetched {len(chapters)} chapters via HTML parsing")
         return chapters
 
     def get_series_title_by_id(self, series_id: str) -> str:
@@ -96,6 +126,52 @@ class WeebCentralDownloader:
         except Exception as e:
             self.vprint(f"Could not fetch manga title for series_id {series_id}: {e}")
         return series_id
+
+    def get_series_metadata(self, series_id: str) -> dict:
+        """Extract metadata for series (title, description, authors, tags).
+
+        Useful for future ComicInfo.xml generation or display.
+        """
+        url = f"{WEEBCENTRAL_URL}/series/{series_id}"
+        metadata = {
+            "title": "",
+            "description": "",
+            "authors": [],
+            "tags": [],
+        }
+
+        try:
+            resp = self.scraper.get(url)
+            text = resp.text
+
+            # Extract title
+            title_match = re.search(r"<h1[^>]*>([^<]+)</h1>", text)
+            if title_match:
+                metadata["title"] = html.unescape(title_match.group(1).strip())
+
+            # Extract description (look for "Description" heading followed by paragraph)
+            desc_match = re.search(r'<strong[^>]*>[^<]*Description[^<]*</strong>\s*\+?\s*<p[^>]*>([^<]+)</p>', text, re.IGNORECASE)
+            if desc_match:
+                metadata["description"] = html.unescape(desc_match.group(1).strip())
+
+            # Extract authors (links after "Author" heading)
+            author_section = re.search(r'<strong[^>]*>[^<]*Author[^<]*</strong>(.*?)(?=<strong|$)', text, re.IGNORECASE | re.DOTALL)
+            if author_section:
+                author_links = re.findall(r'<a[^>]*>([^<]+)</a>', author_section.group(1))
+                metadata["authors"] = [html.unescape(a.strip()) for a in author_links]
+
+            # Extract tags (links after "Tags" heading)
+            tags_section = re.search(r'<strong[^>]*>[^<]*Tags[^<]*</strong>(.*?)(?=<strong|$)', text, re.IGNORECASE | re.DOTALL)
+            if tags_section:
+                tag_links = re.findall(r'<a[^>]*>([^<]+)</a>', tags_section.group(1))
+                metadata["tags"] = [html.unescape(t.strip()) for t in tag_links]
+
+            self.vprint(f"[Metadata] Title: {metadata['title']}, Authors: {len(metadata['authors'])}, Tags: {len(metadata['tags'])}")
+
+        except Exception as e:
+            self.vprint(f"Could not extract metadata for series_id {series_id}: {e}")
+
+        return metadata
 
     def get_latest_downloaded_chapter(self, series_title: str) -> Optional[float]:
         out_dir = os.path.join(self.output_dir, series_title)
@@ -175,7 +251,21 @@ class WeebCentralDownloader:
         os.makedirs(chapter_dir, exist_ok=True)
         url = f"{WEEBCENTRAL_URL}/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
         resp = self.scraper.get(url)
-        img_urls = re.findall(r'src="([^"]+)"', resp.text)
+        img_urls = []
+
+        # Try JSON API first
+        try:
+            data = resp.json()
+            img_urls = [img.get("src") for img in data.get("images", []) if img.get("src")]
+            if img_urls:
+                self.vprint(f"[JSON] Found {len(img_urls)} images via JSON API")
+        except (ValueError, KeyError) as e:
+            self.vprint(f"[JSON] Failed to parse JSON, falling back to HTML: {e}")
+
+        # Fallback to HTML regex parsing
+        if not img_urls:
+            img_urls = re.findall(r'src="([^"]+)"', resp.text)
+            self.vprint(f"[HTML] Found {len(img_urls)} images via HTML parsing")
 
         if not img_urls:
             print(f"No images found in chapter {chapter_num}!")
