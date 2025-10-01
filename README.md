@@ -58,8 +58,9 @@ python main.py [query] [options]
 | `--max-sleep`         |       | The maximum time (in seconds) to sleep for rate-limiting or retries. Defaults to `120`.                   |
 | `--max-retries`       |       | The maximum number of times to retry downloading a failed image. Defaults to `5`.                           |
 | `--series-id`         | `-id` | Bypass the search and download directly using a WeebCentral series ID.                                      |
+| `--en`                |       | Use English title from series page instead of URL slug (for better folder naming).                          |
 
---- 
+---
 
 ### Examples
 
@@ -93,14 +94,24 @@ python main.py [query] [options]
 
     ```
     One-Punch Man
-    01H9S3T35N14MQR314X4J1V4B1 # Jujutsu Kaisen
+    01H9S3T35N14MQR314X4J1V4B1=Jujutsu Kaisen
+    01J76XYDXH7KT6AABVG3JAT3ZP/Shangri-La-Frontier
     My Hero Academia
     ```
+
+    Note: Lines with `=` or `/` are treated as `series_id=title` or `series_id/title` format.
 
     Then run the script:
 
     ```bash
     python main.py -b manga_list.txt
+    ```
+
+6.  **Download with English title instead of romaji:**
+
+    ```bash
+    python main.py -id 01J76XYH7K8F4J5TEBFVVFTAZ4 --en
+    # Downloads as "Betrothed-to-a-Fox-Demon" instead of "Kyouganeke-no-Hanayome"
     ```
 
 ### Output Structure
@@ -125,10 +136,63 @@ manga_downloads/
     └── ...
 ```
 
+## Manga Management Utilities
+
+The `manga_utils.py` script provides tools for managing your downloaded manga collection, including removing duplicates and renaming folders to English titles.
+
+### Features
+
+- **Remove Duplicates**: Detect and merge duplicate manga folders based on series ID
+- **English Renaming**: Convert folder names from romaji to English titles
+- **Smart Prioritization**: Keeps the folder with longer names (newer format) and more chapters
+- **Dry Run Mode**: Preview all changes before applying them
+
+### Usage
+
+```bash
+# Show help and available commands
+python manga_utils.py --help
+
+# Remove duplicates (preview mode)
+python manga_utils.py remove-duplicates Y:\manga\main --dry-run
+
+# Remove duplicates and rename kept folders to English
+python manga_utils.py remove-duplicates Y:\manga\main --en
+
+# Remove duplicates (live - actually deletes)
+python manga_utils.py remove-duplicates Y:\manga\main
+
+# Rename all manga folders to English titles (preview)
+python manga_utils.py rename-english Y:\manga\main --dry-run
+
+# Rename all manga folders to English titles (live)
+python manga_utils.py rename-english Y:\manga\main
+```
+
+### How It Works
+
+**Duplicate Detection:**
+- Identifies duplicates by finding the series ID in cover image filenames (26-character `.jpg`/`.webp` files)
+- Prioritizes folders based on:
+  - Longer folder names (newer code format with full titles)
+  - Newer modification dates
+  - More downloaded chapters
+- Merges chapters from duplicate folders before removal
+
+**English Renaming:**
+- Fetches the English title from WeebCentral's `<h1>` tag on the series page
+- Examples:
+  - `Kyouganeke-no-Hanayome` → `Betrothed-to-a-Fox-Demon`
+  - `Tensei-Shitara-Slime-Datta-Ken` → `That-Time-I-Got-Reincarnated-as-a-Slime`
+  - `Mahou-Shoujo-ni-Akogarete` → `Gushing-Over-Magical-Girls`
+
+**Important:** Always use `--dry-run` first to preview changes before making any modifications!
+
 ## Code Structure
 
-The project is organized into three main files to ensure clarity and maintainability:
+The project is organized into four main files to ensure clarity and maintainability:
 
 -   **`main.py`**: Handles command-line argument parsing and orchestrates the download process.
 -   **`downloader.py`**: Contains the `WeebCentralDownloader` class, which encapsulates all the core logic for searching, fetching, and downloading.
 -   **`utils.py`**: A collection of helper functions for tasks like sanitizing filenames and formatting chapter names.
+-   **`manga_utils.py`**: Manga management utilities for removing duplicates and renaming folders to English titles.
