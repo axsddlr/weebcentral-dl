@@ -101,6 +101,13 @@ def main():
                         series_id=series_id.strip(),
                         chapters_to_download=chapters_to_download,
                     )
+                elif "/" in line:
+                    series_id, title = line.split("/", 1)
+                    downloader.process_manga(
+                        title=title.strip(),
+                        series_id=series_id.strip(),
+                        chapters_to_download=chapters_to_download,
+                    )
                 else:
                     downloader.process_manga(
                         title=line, chapters_to_download=chapters_to_download
