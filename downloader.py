@@ -116,12 +116,37 @@ class WeebCentralDownloader:
         return chapters
 
     def get_series_title_by_id(self, series_id: str) -> str:
+        """Get series title from series page.
+
+        If config.en is True, tries to get English title by:
+        1. Checking if H1 title is English (no Japanese romaji particles)
+        2. Falling back to Associated Name(s) if H1 is romaji
+        3. Using H1 as last resort
+        """
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
             resp = self.scraper.get(url)
+
+            # Extract H1 title
             m = re.search(r"<h1[^>]*>([^<]+)</h1>", resp.text)
             if m:
                 title = html.unescape(m.group(1).strip())
+
+                # If --en flag is used, try to get English title
+                if self.config.en:
+                    # Check if title looks like romaji (has Japanese particles)
+                    if re.search(r'\b(de|wo|ga|no|ni|wa)\b', title, re.IGNORECASE):
+                        # Try to get Associated Name(s) instead
+                        assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
+                        assoc_match = re.search(assoc_pattern, resp.text, re.DOTALL | re.IGNORECASE)
+
+                        if assoc_match:
+                            ul_content = assoc_match.group(1)
+                            li_items = re.findall(r'<li>([^<]+)</li>', ul_content)
+                            if li_items:
+                                title = html.unescape(li_items[0].strip())
+                                self.vprint(f"Using Associated Name: {title}")
+
                 return sanitize_title(title)
         except Exception as e:
             self.vprint(f"Could not fetch manga title for series_id {series_id}: {e}")
