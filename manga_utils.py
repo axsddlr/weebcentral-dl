@@ -36,7 +36,13 @@ def find_series_id(folder_path):
 
 
 def get_english_title(series_id):
-    """Fetch English title from WeebCentral series page."""
+    """Fetch English title from WeebCentral series page.
+
+    Tries in order:
+    1. <h1> tag if it looks English (no romaji particles)
+    2. Associated Name(s) if H1 is romaji
+    3. Falls back to H1 title if no Associated Names exist
+    """
     if not cloudscraper:
         print("Warning: cloudscraper not installed, cannot fetch English titles")
         return None
@@ -50,14 +56,36 @@ def get_english_title(series_id):
         url = f"https://weebcentral.com/series/{series_id}"
         resp = scraper.get(url, timeout=10)
 
-        # Extract English title from <h1> tag
-        match = re.search(r'<h1[^>]*>([^<]+)</h1>', resp.text)
-        if match:
-            title = html.unescape(match.group(1).strip())
-            # Sanitize title for folder name
-            title = re.sub(r'[<>:"/\\|?*]', '', title)
-            title = title.replace(' ', '-')
-            return title
+        # Extract H1 title
+        h1_match = re.search(r'<h1[^>]*>([^<]+)</h1>', resp.text)
+        if not h1_match:
+            return None
+
+        h1_title = html.unescape(h1_match.group(1).strip())
+
+        # Check if title looks like romaji (has Japanese particles)
+        has_romaji = re.search(r'\b(de|wo|ga|no|ni|wa)\b', h1_title, re.IGNORECASE)
+
+        if has_romaji:
+            # Try to get Associated Name(s) for English title
+            assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
+            assoc_match = re.search(assoc_pattern, resp.text, re.DOTALL | re.IGNORECASE)
+
+            if assoc_match:
+                ul_content = assoc_match.group(1)
+                li_items = re.findall(r'<li>([^<]+)</li>', ul_content)
+                if li_items:
+                    # Use first associated name (usually English)
+                    title = html.unescape(li_items[0].strip())
+                    title = re.sub(r'[<>:"/\\|?*]', '', title)
+                    title = title.replace(' ', '-')
+                    return title
+
+        # Either H1 is English, or no Associated Names found - use H1
+        title = re.sub(r'[<>:"/\\|?*]', '', h1_title)
+        title = title.replace(' ', '-')
+        return title
+
     except Exception as e:
         print(f"Warning: Could not fetch English title for {series_id}: {e}")
 
@@ -210,7 +238,7 @@ def remove_duplicates_command(manga_dir, dry_run=False, use_english=False):
         print("\nThis was a DRY RUN. Run without --dry-run to actually remove duplicates.")
 
 
-def rename_to_english_command(manga_dir, dry_run=False):
+def rename_to_english_command(manga_dir, dry_run=False, verbose=False):
     """Rename all manga folders to English titles from WeebCentral."""
     if not cloudscraper:
         print("Error: This command requires cloudscraper. Install with: pip install cloudscraper")
@@ -220,6 +248,7 @@ def rename_to_english_command(manga_dir, dry_run=False):
     print(f"Mode: {'DRY RUN (no changes will be made)' if dry_run else 'LIVE (will rename folders)'}\n")
 
     renamed_count = 0
+    skipped_count = 0
 
     for folder_name in sorted(os.listdir(manga_dir)):
         folder_path = os.path.join(manga_dir, folder_name)
@@ -229,31 +258,46 @@ def rename_to_english_command(manga_dir, dry_run=False):
 
         series_id = find_series_id(folder_path)
         if not series_id:
-            print(f"Skipping '{folder_name}': No series ID found")
+            if verbose:
+                print(f"Skipping '{folder_name}': No series ID found")
+            skipped_count += 1
             continue
 
-        english_title = get_english_title(series_id)
+        if verbose:
+            print(f"Processing '{folder_name}' (ID: {series_id})...")
+
+        try:
+            english_title = get_english_title(series_id)
+        except Exception as e:
+            print(f"Skipping '{folder_name}': Error fetching title - {e}")
+            skipped_count += 1
+            continue
+
         if not english_title:
             print(f"Skipping '{folder_name}': Could not fetch English title")
+            skipped_count += 1
             continue
 
         if english_title == folder_name:
-            print(f"Already English: '{folder_name}'")
+            if verbose:
+                print(f"Already English: '{folder_name}'")
+            skipped_count += 1
             continue
 
         new_path = os.path.join(manga_dir, english_title)
 
         if os.path.exists(new_path):
             print(f"Skipping '{folder_name}': Target '{english_title}' already exists")
+            skipped_count += 1
             continue
 
         print(f"{'Would rename' if dry_run else 'Renaming'}: '{folder_name}' -> '{english_title}'")
 
         if not dry_run:
             os.rename(folder_path, new_path)
-            renamed_count += 1
+        renamed_count += 1
 
-    print(f"\nSummary: {renamed_count} folder(s) {'would be' if dry_run else 'were'} renamed.")
+    print(f"\nSummary: {renamed_count} folder(s) {'would be' if dry_run else 'were'} renamed, {skipped_count} skipped.")
 
     if dry_run:
         print("\nThis was a DRY RUN. Run without --dry-run to actually rename folders.")
@@ -288,6 +332,7 @@ Examples:
     rename_parser = subparsers.add_parser('rename-english', help='Rename all folders to English titles')
     rename_parser.add_argument('directory', help='Manga directory path')
     rename_parser.add_argument('--dry-run', action='store_true', help='Preview changes without making them')
+    rename_parser.add_argument('-v', '--verbose', action='store_true', help='Show detailed output')
 
     args = parser.parse_args()
 
@@ -310,7 +355,8 @@ Examples:
     if args.command == 'remove-duplicates':
         remove_duplicates_command(args.directory, args.dry_run, args.en)
     elif args.command == 'rename-english':
-        rename_to_english_command(args.directory, args.dry_run)
+        verbose = getattr(args, 'verbose', False)
+        rename_to_english_command(args.directory, args.dry_run, verbose)
 
 
 if __name__ == "__main__":
