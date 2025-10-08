@@ -2,6 +2,7 @@
 import argparse
 import sys
 from typing import Optional, Set
+from loguru import logger
 
 from downloader import WeebCentralDownloader
 
@@ -89,6 +90,25 @@ def main():
         help="Use English title from series page instead of URL slug",
     )
     args = parser.parse_args()
+
+    # Configure loguru based on verbose flag
+    logger.remove()  # Remove default handler
+    if args.verbose:
+        # Verbose mode: show DEBUG and above with detailed formatting
+        logger.add(
+            sys.stderr,
+            format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+            level="DEBUG",
+            colorize=True
+        )
+    else:
+        # Normal mode: show INFO and above with simple formatting
+        logger.add(
+            sys.stderr,
+            format="<level>{message}</level>",
+            level="INFO",
+            colorize=True
+        )
 
     downloader = WeebCentralDownloader(args)
     chapters_to_download = parse_chapter_arg(args.chapter)

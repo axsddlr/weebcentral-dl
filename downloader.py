@@ -12,6 +12,7 @@ from urllib.parse import quote_plus
 import cloudscraper
 from typing import List, Optional, Tuple, Set
 from PIL import Image
+from loguru import logger
 
 from utils import sanitize_title, get_vol_and_chapter_names, has_images
 
@@ -32,10 +33,6 @@ class WeebCentralDownloader:
         })
         self.output_dir = os.path.abspath(config.output)
         os.makedirs(self.output_dir, exist_ok=True)
-
-    def vprint(self, *args, **kwargs):
-        if self.config.verbose:
-            print(*args, **kwargs)
 
     def log_not_found(self, msg: str):
         try:
@@ -98,10 +95,10 @@ class WeebCentralDownloader:
                         chapters.append((chap_type, chap_num, chap_id))
             if chapters:
                 chapters.sort(key=lambda x: float(x[1]), reverse=True)
-                self.vprint(f"[JSON] Fetched {len(chapters)} chapters via JSON API")
+                logger.debug(f"Fetched {len(chapters)} chapters via JSON API")
                 return chapters
         except (ValueError, KeyError) as e:
-            self.vprint(f"[JSON] Failed to parse JSON, falling back to HTML: {e}")
+            logger.debug(f"JSON API failed, falling back to HTML parsing: {e}")
 
         # Fallback to HTML regex parsing
         pattern = re.compile(
@@ -112,7 +109,7 @@ class WeebCentralDownloader:
             for m in pattern.finditer(resp.text)
         ]
         chapters.sort(key=lambda x: float(x[1]), reverse=True)
-        self.vprint(f"[HTML] Fetched {len(chapters)} chapters via HTML parsing")
+        logger.debug(f"Fetched {len(chapters)} chapters via HTML parsing")
         return chapters
 
     def get_series_title_by_id(self, series_id: str) -> str:
@@ -145,11 +142,11 @@ class WeebCentralDownloader:
                             li_items = re.findall(r'<li>([^<]+)</li>', ul_content)
                             if li_items:
                                 title = html.unescape(li_items[0].strip())
-                                self.vprint(f"Using Associated Name: {title}")
+                                logger.debug(f"Using Associated Name: {title}")
 
                 return sanitize_title(title)
         except Exception as e:
-            self.vprint(f"Could not fetch manga title for series_id {series_id}: {e}")
+            logger.warning(f"Could not fetch manga title for series_id {series_id}: {e}")
         return series_id
 
     def get_series_metadata(self, series_id: str) -> dict:
@@ -191,10 +188,10 @@ class WeebCentralDownloader:
                 tag_links = re.findall(r'<a[^>]*>([^<]+)</a>', tags_section.group(1))
                 metadata["tags"] = [html.unescape(t.strip()) for t in tag_links]
 
-            self.vprint(f"[Metadata] Title: {metadata['title']}, Authors: {len(metadata['authors'])}, Tags: {len(metadata['tags'])}")
+            logger.debug(f"Metadata - Title: {metadata['title']}, Authors: {len(metadata['authors'])}, Tags: {len(metadata['tags'])}")
 
         except Exception as e:
-            self.vprint(f"Could not extract metadata for series_id {series_id}: {e}")
+            logger.warning(f"Could not extract metadata for series_id {series_id}: {e}")
 
         return metadata
 
@@ -246,27 +243,23 @@ class WeebCentralDownloader:
                 with open(out_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
                         f.write(chunk)
-                self.vprint(f"Downloaded: {img_url}")
+                logger.debug(f"Downloaded: {img_url}")
                 return out_path
             except Exception as e:
-                self.vprint(f"Error downloading {img_url}: {e}")
+                logger.debug(f"Error downloading {img_url}: {e}")
                 error_text = str(e).lower()
                 if any(
                     err in error_text
                     for err in ["beacon", "connection refused", "max retries exceeded"]
                 ):
                     sleep_time = random.randint(15, self.config.max_sleep)
-                    print(
-                        f"\n[WARN] Connection error on {img_url}. Sleeping for {sleep_time}s and retrying...\n"
-                    )
+                    logger.warning(f"Connection error on {img_url}. Sleeping for {sleep_time}s and retrying...")
                     time.sleep(sleep_time)
                     self.scraper = cloudscraper.create_scraper()
                     retry_count += 1
                 else:
                     break
-        self.vprint(
-            f"[FAIL] Giving up on {img_url} after {self.config.max_retries} retries."
-        )
+        logger.error(f"Failed to download {img_url} after {self.config.max_retries} retries")
         return None
 
     def download_chapter_images(
@@ -283,17 +276,17 @@ class WeebCentralDownloader:
             data = resp.json()
             img_urls = [img.get("src") for img in data.get("images", []) if img.get("src")]
             if img_urls:
-                self.vprint(f"[JSON] Found {len(img_urls)} images via JSON API")
+                logger.debug(f"Found {len(img_urls)} images via JSON API")
         except (ValueError, KeyError) as e:
-            self.vprint(f"[JSON] Failed to parse JSON, falling back to HTML: {e}")
+            logger.debug(f"JSON API failed for images, falling back to HTML: {e}")
 
         # Fallback to HTML regex parsing
         if not img_urls:
             img_urls = re.findall(r'src="([^"]+)"', resp.text)
-            self.vprint(f"[HTML] Found {len(img_urls)} images via HTML parsing")
+            logger.debug(f"Found {len(img_urls)} images via HTML parsing")
 
         if not img_urls:
-            print(f"No images found in chapter {chapter_num}!")
+            logger.error(f"No images found in chapter {chapter_num}!")
             return None
 
         if self.config.sequence:
@@ -310,6 +303,17 @@ class WeebCentralDownloader:
                 concurrent.futures.wait(futures)
         return chapter_dir
 
+    def get_cover_image_path(self, series_title: str) -> Optional[str]:
+        """Find the cover image (jpg or webp) for the series."""
+        series_dir = os.path.join(self.output_dir, series_title)
+        if not os.path.exists(series_dir):
+            return None
+
+        for file in os.listdir(series_dir):
+            if file.endswith(('.jpg', '.webp')) and len(file.split('.')[0]) == 26:
+                return os.path.join(series_dir, file)
+        return None
+
     def archive_chapter(
         self, chapter_dir: str, series_title: str, chapter_num: str, chapter_type: str
     ):
@@ -321,10 +325,29 @@ class WeebCentralDownloader:
             shutil.rmtree(chapter_dir)
             return
 
+        # Get sorted list of image files
+        image_files = []
+        for root, _, files in os.walk(chapter_dir):
+            for file in sorted(files):
+                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                    image_files.append(os.path.join(root, file))
+
         if self.config.zip:
             vol_name, _ = get_vol_and_chapter_names(chapter_num)
             zip_path = os.path.join(out_dir, f"{vol_name}.zip")
-            shutil.make_archive(os.path.splitext(zip_path)[0], "zip", chapter_dir)
+
+            # Create archive with cover as first page
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                # Add cover as 000-cover.jpg (sorts first)
+                cover_path = self.get_cover_image_path(series_title)
+                if cover_path and os.path.exists(cover_path):
+                    ext = os.path.splitext(cover_path)[1]
+                    zf.write(cover_path, arcname=f"000-cover{ext}")
+
+                # Add chapter images
+                for img_file in image_files:
+                    zf.write(img_file, arcname=os.path.basename(img_file))
+
             print(f"Created zip archive: {zip_path}")
         else:
             out_file = os.path.join(
@@ -332,9 +355,16 @@ class WeebCentralDownloader:
                 f"{series_title}-{chapter_num}{('-' + chapter_type) if chapter_type else ''}.cbz",
             )
             with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as zf:
-                for root, _, files in os.walk(chapter_dir):
-                    for file in files:
-                        zf.write(os.path.join(root, file), arcname=file)
+                # Add cover as 000-cover.jpg (sorts first)
+                cover_path = self.get_cover_image_path(series_title)
+                if cover_path and os.path.exists(cover_path):
+                    ext = os.path.splitext(cover_path)[1]
+                    zf.write(cover_path, arcname=f"000-cover{ext}")
+
+                # Add chapter images
+                for img_file in image_files:
+                    zf.write(img_file, arcname=os.path.basename(img_file))
+
             print(f"Wrote {out_file}")
         shutil.rmtree(chapter_dir)
 
@@ -446,9 +476,7 @@ class WeebCentralDownloader:
                     f"Downloading new chapters after chapter {latest}: {sorted(list(chapters_to_download))}"
                 )
 
-        self.vprint(
-            f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})"
-        )
+        logger.debug(f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})")
         self.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
 
     def download_cover_image_and_convert(self, series_id: str, series_title: str):
@@ -459,14 +487,14 @@ class WeebCentralDownloader:
                 new_path = os.path.splitext(cover_path)[0] + ".jpg"
                 img.save(new_path, "jpeg")
                 os.remove(cover_path)
-                self.vprint(f"Converted {cover_path} to {new_path}")
+                logger.debug(f"Converted {cover_path} to {new_path}")
             except Exception as e:
-                self.vprint(f"Could not convert cover image {cover_path}: {e}")
+                logger.warning(f"Could not convert cover image {cover_path}: {e}")
 
     def download_cover_image(self, series_id: str, series_title: str):
         out_dir = os.path.join(self.output_dir, series_title)
         if os.path.exists(out_dir) and any(f.lower().endswith(".jpg") for f in os.listdir(out_dir)):
-            self.vprint(f"Cover image already exists for {series_title}, skipping download.")
+            logger.debug(f"Cover image already exists for {series_title}, skipping download")
             return None
 
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
@@ -478,7 +506,5 @@ class WeebCentralDownloader:
                 os.makedirs(out_dir, exist_ok=True)
                 return self.download_image(cover_url, out_dir, url)
         except Exception as e:
-            self.vprint(
-                f"Could not download cover image for series_id {series_id}: {e}"
-            )
+            logger.warning(f"Could not download cover image for series_id {series_id}: {e}")
         return None

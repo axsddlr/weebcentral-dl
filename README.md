@@ -144,6 +144,7 @@ The `manga_utils.py` script provides tools for managing your downloaded manga co
 
 - **Remove Duplicates**: Detect and merge duplicate manga folders based on series ID
 - **English Renaming**: Convert folder names from romaji to English titles
+- **Add Cover Images**: Embed cover images into existing archives as the first page for manga readers
 - **Smart Prioritization**: Keeps the folder with longer names (newer format) and more chapters
 - **Dry Run Mode**: Preview all changes before applying them
 
@@ -167,6 +168,12 @@ python manga_utils.py rename-english Y:\manga\main --dry-run
 
 # Rename all manga folders to English titles (live)
 python manga_utils.py rename-english Y:\manga\main
+
+# Add cover images to existing archives (preview)
+python manga_utils.py add-covers Y:\manga\main --dry-run
+
+# Add cover images to existing archives (live)
+python manga_utils.py add-covers Y:\manga\main -v
 ```
 
 ### How It Works
@@ -181,10 +188,19 @@ python manga_utils.py rename-english Y:\manga\main
 
 **English Renaming:**
 - Fetches the English title from WeebCentral's `<h1>` tag on the series page
+- Falls back to "Associated Name(s)" if the H1 is in romaji
 - Examples:
   - `Kyouganeke-no-Hanayome` → `Betrothed-to-a-Fox-Demon`
   - `Tensei-Shitara-Slime-Datta-Ken` → `That-Time-I-Got-Reincarnated-as-a-Slime`
   - `Mahou-Shoujo-ni-Akogarete` → `Gushing-Over-Magical-Girls`
+  - `Zombie-Sekai-de-Harem-wo-Tsukurou` → `Lets-Build-a-Harem-in-a-Zombie-World!`
+
+**Cover Image Embedding:**
+- Finds the series cover image (26-character series ID filename: `.jpg` or `.webp`)
+- Opens each CBZ/ZIP archive and adds the cover as `000-cover.jpg` (first file)
+- Manga readers (Komga, Kavita, Tachiyomi, etc.) automatically use the first page as the cover thumbnail
+- Skips archives that already have a cover embedded
+- Works with both `.cbz` and `.zip` formats
 
 **Important:** Always use `--dry-run` first to preview changes before making any modifications!
 
