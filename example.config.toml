@@ -1,2 +1,106 @@
+# WeebCentral Downloader Configuration Example
+# Copy this file to config.toml and customize for your needs
+# All settings are hot-reloadable - changes apply on next download trigger
+
+[downloader]
+# ============================================================================
+# DOWNLOAD MODE OPTIONS
+# ============================================================================
+
+# Download only chapters newer than the latest one already downloaded
+# Equivalent to: --latest / -l
+latest = false
+
+# Download chapters sequentially instead of in parallel (99 workers)
+# Use this if the server is rate-limiting or you want to reduce load
+# Equivalent to: --sequence / -s
+sequence = false
+
+# ============================================================================
+# ARCHIVE FORMAT OPTIONS
+# ============================================================================
+
+# Output format: false = .cbz (comic book zip), true = .zip
+# .cbz is recommended for comic book readers (Komga, Kavita, etc.)
+# Equivalent to: --zip / -z
+zip = false
+
+# ============================================================================
+# TITLE & NAMING OPTIONS
+# ============================================================================
+
+# Use English title from series page instead of romanized/URL title
+# Example: "Betrothed-to-a-Fox-Demon" instead of "Kyouganeke-no-Hanayome"
+# Equivalent to: --en
+use_english_title = false
+
+# ============================================================================
+# LOGGING OPTIONS
+# ============================================================================
+
+# Enable verbose/debug output for detailed logging
+# Shows progress, URLs, chapter details, etc.
+# Equivalent to: --verbose / -v
+verbose = false
+
+# ============================================================================
+# RATE LIMITING & RETRY OPTIONS
+# ============================================================================
+
+# Number of chapters to download before pausing for rate limiting
+# Higher values = faster downloads but may trigger rate limits
+# Lower values = slower but more respectful to server
+# Equivalent to: --rlc
+# Default: 10
+rlc = 10
+
+# Maximum sleep time in seconds for rate limiting and retry backoff
+# Used for exponential backoff when retrying failed downloads
+# Equivalent to: --max-sleep
+# Default: 120
+max_sleep = 120
+
+# Maximum number of retry attempts for failed image downloads
+# Retries use exponential backoff (1s, 2s, 4s, 8s, etc.)
+# Equivalent to: --max-retries
+# Default: 5
+max_retries = 5
+
+# ============================================================================
+# EXAMPLE CONFIGURATIONS
+# ============================================================================
+
+# Fast Download Configuration (risky - may trigger rate limits):
+# latest = false
+# sequence = false
+# rlc = 20
+# max_retries = 3
+
+# Safe Download Configuration (slow but reliable):
+# latest = false
+# sequence = true
+# rlc = 5
+# max_sleep = 180
+# max_retries = 10
+
+# Resume Mode Configuration (only download new chapters):
+# latest = true
+# use_english_title = true
+# verbose = true
+# rlc = 10
+
+# Quality Over Speed Configuration:
+# sequence = true
+# use_english_title = true
+# verbose = true
+# max_retries = 10
+# max_sleep = 300
+
+# ============================================================================
+# NOTIFICATIONS (Optional)
+# ============================================================================
+
 [ntfy]
-ntfy_url = "<ntfy channel url>"
+# ntfy.sh push notification URL (optional)
+# Example: "https://ntfy.sh/your-topic-name"
+ntfy_url = ""

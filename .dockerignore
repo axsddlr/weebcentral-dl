@@ -1,0 +1,7 @@
+manga_downloads/
+__pycache__/
+*.pyc
+.git/
+*.log
+.gitignore
+CLAUDE.md

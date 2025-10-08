@@ -1,4 +1,3 @@
-import argparse
 import os
 import re
 import tempfile
@@ -14,7 +13,8 @@ from typing import List, Optional, Tuple, Set
 from PIL import Image
 from loguru import logger
 
-from utils import sanitize_title, get_vol_and_chapter_names, has_images
+from src.utils import sanitize_title, get_vol_and_chapter_names, has_images
+from src.config import DownloaderConfig
 
 # --- Constants ---
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
@@ -23,7 +23,7 @@ WEEBCENTRAL_URL = "https://weebcentral.com"
 
 
 class WeebCentralDownloader:
-    def __init__(self, config: argparse.Namespace):
+    def __init__(self, config: DownloaderConfig):
         self.config = config
         self.scraper = cloudscraper.create_scraper()
         self.scraper.headers.update({
@@ -31,7 +31,7 @@ class WeebCentralDownloader:
             "Accept": "*/*",
             "HX-Request": "true",  # Enable HTMX/JSON responses
         })
-        self.output_dir = os.path.abspath(config.output)
+        self.output_dir = os.path.abspath(config.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
 
     def log_not_found(self, msg: str):
@@ -115,7 +115,7 @@ class WeebCentralDownloader:
     def get_series_title_by_id(self, series_id: str) -> str:
         """Get series title from series page.
 
-        If config.en is True, tries to get English title by:
+        If config.use_english_title is True, tries to get English title by:
         1. Checking if H1 title is English (no Japanese romaji particles)
         2. Falling back to Associated Name(s) if H1 is romaji
         3. Using H1 as last resort
@@ -130,7 +130,7 @@ class WeebCentralDownloader:
                 title = html.unescape(m.group(1).strip())
 
                 # If --en flag is used, try to get English title
-                if self.config.en:
+                if self.config.use_english_title:
                     # Check if title looks like romaji (has Japanese particles)
                     if re.search(r'\b(de|wo|ga|no|ni|wa)\b', title, re.IGNORECASE):
                         # Try to get Associated Name(s) instead

@@ -4,3 +4,9 @@
 /.venv
 __pycache__
 config.toml
+.env
+manga.txt
+.claude/
+claude.md
+todo.md
+test*

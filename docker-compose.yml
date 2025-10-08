@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  manga-downloader:
+    build: .
+    container_name: weebcentral-dl
+    volumes:
+      # Mount your manga list file (customize left side to your file path)
+      - ./manga_list.txt:/app/manga_list.txt
+
+      # Mount config file for hot reload (all settings from config.toml)
+      - ./config.toml:/app/config.toml
+
+      # Persist downloads to host
+      - ./manga_downloads:/app/manga_downloads
+    environment:
+      # Docker mode enabled (automatically set in Dockerfile)
+      - DOCKER_MODE=1
+
+      # Specify which manga list file to watch (default: manga_list.txt)
+      - MANGA_LIST=manga_list.txt
+
+      # Specify config file to use (default: config.toml)
+      - CONFIG_FILE=config.toml
+    restart: unless-stopped

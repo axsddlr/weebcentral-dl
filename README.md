@@ -204,6 +204,68 @@ python manga_utils.py add-covers Y:\manga\main -v
 
 **Important:** Always use `--dry-run` first to preview changes before making any modifications!
 
+## Docker Deployment
+
+Run the downloader in a Docker container with automatic file watching and hot reload support.
+
+### Quick Start
+
+1.  **Build and run:**
+
+    ```bash
+    docker-compose up -d
+    ```
+
+2.  **Add manga to download list:**
+
+    Edit `manga_list.txt` - the container will automatically detect changes and start downloading:
+
+    ```
+    One-Punch Man
+    Jujutsu Kaisen
+    Solo Leveling
+    ```
+
+3.  **Configure download options:**
+
+    Edit `config.toml` to customize download behavior (changes apply on next download):
+
+    ```toml
+    [downloader]
+    latest = true          # Only download new chapters
+    sequence = false       # Use parallel downloading
+    zip = false            # Use .cbz format
+    verbose = true         # Show detailed logs
+    use_english_title = true  # Use English titles
+    rlc = 10               # Chapters before rate limit
+    max_sleep = 120        # Max sleep time (seconds)
+    max_retries = 5        # Max retry attempts
+    ```
+
+4.  **View logs:**
+
+    ```bash
+    docker-compose logs -f
+    ```
+
+5.  **Use custom manga list file:**
+
+    Edit `docker-compose.yml` to point to your file:
+
+    ```yaml
+    volumes:
+      - ./my_manga_list.txt:/app/manga_list.txt
+    environment:
+      - MANGA_LIST=manga_list.txt
+    ```
+
+### Features
+
+- **Hot Reload**: Automatically detects changes to `manga_list.txt` and `config.toml`
+- **Persistent Storage**: Downloads saved to `./manga_downloads` on your host
+- **Zero Configuration**: Works out of the box with sensible defaults
+- **Easy Updates**: Simply edit text files, no need to restart container
+
 ## Code Structure
 
 The project is organized into four main files to ensure clarity and maintainability:
@@ -212,3 +274,4 @@ The project is organized into four main files to ensure clarity and maintainabil
 -   **`downloader.py`**: Contains the `WeebCentralDownloader` class, which encapsulates all the core logic for searching, fetching, and downloading.
 -   **`utils.py`**: A collection of helper functions for tasks like sanitizing filenames and formatting chapter names.
 -   **`manga_utils.py`**: Manga management utilities for removing duplicates and renaming folders to English titles.
+-   **`docker_runner.py`**: Docker container orchestration with file watching and hot reload support.
