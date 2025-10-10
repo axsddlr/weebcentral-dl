@@ -14,9 +14,6 @@ services:
       # Persist downloads to host
       - ./manga_downloads:/app/manga_downloads
     environment:
-      # Docker mode enabled (automatically set in Dockerfile)
-      - DOCKER_MODE=1
-
       # Specify which manga list file to watch (default: manga_list.txt)
       - MANGA_LIST=manga_list.txt
 
