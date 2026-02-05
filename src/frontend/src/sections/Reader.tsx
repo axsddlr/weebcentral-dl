@@ -40,7 +40,7 @@ interface ReaderProps {
 const defaultSettings: ReaderSettings = {
   readingMode: 'long-strip',
   readingDirection: 'ltr',
-  fitMode: 'fit-width',
+  fitMode: 'fit-screen',
   backgroundColor: 'black',
   showPageNumber: true,
   preloadPages: 3,
