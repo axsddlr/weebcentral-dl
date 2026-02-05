@@ -107,6 +107,13 @@ def main():
         help="Max retries for image download (default: 5)",
     )
     parser.add_argument(
+        "--parallel-workers",
+        type=int,
+        default=None,
+        dest="parallel_workers",
+        help="Number of parallel download workers (default: 99, set to 1 for sequential)",
+    )
+    parser.add_argument(
         "-id",
         "--series-id",
         type=str,
@@ -137,6 +144,7 @@ def main():
         'rlc': args.rlc,
         'max_sleep': args.max_sleep,
         'max_retries': args.max_retries,
+        'parallel_workers': args.parallel_workers,
         'output_dir': args.output_dir,
         'bulk_file': args.bulk_file,
         'series_id': args.series_id,
@@ -170,7 +178,7 @@ def main():
     elif config.query:
         downloader.process_manga(title=config.query, chapters_to_download=chapters_to_download)
     else:
-        print("No manga title, series ID, or bulk file specified. Use -h for help.")
+        logger.error("No manga title, series ID, or bulk file specified. Use -h for help.")
         sys.exit(1)
 
 
@@ -179,7 +187,7 @@ def process_bulk_mode(downloader: WeebCentralDownloader, bulk_file: str, chapter
     try:
         with open(bulk_file, "r", encoding="utf-8") as f:
             manga_list = [line.strip() for line in f if line.strip()]
-        print(f"Found {len(manga_list)} manga titles in {bulk_file}")
+        logger.info(f"Found {len(manga_list)} manga titles in {bulk_file}")
         for line in manga_list:
             if "=" in line:
                 series_id, title = line.split("=", 1)
@@ -200,10 +208,10 @@ def process_bulk_mode(downloader: WeebCentralDownloader, bulk_file: str, chapter
                     title=line, chapters_to_download=chapters_to_download
                 )
     except FileNotFoundError:
-        print(f"Error: Could not find bulk file: {bulk_file}")
+        logger.error(f"Could not find bulk file: {bulk_file}")
         sys.exit(1)
     except Exception as e:
-        print(f"Error reading bulk file: {e}")
+        logger.error(f"Error reading bulk file: {e}")
         sys.exit(1)
 
 

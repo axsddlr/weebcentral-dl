@@ -1,7 +1,40 @@
+# Downloads and data
 manga_downloads/
+*.log
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+.venv/
+venv/
+
+# Git
 .git/
-*.log
 .gitignore
+
+# Node/Frontend (built files are in src/web/)
+node_modules/
+src/frontend/node_modules/
+src/frontend/dist/
+
+# IDE/Editor
+.vscode/
+.idea/
+.aider*
+.codegpt
+.claude/
+
+# Docs
 CLAUDE.md
+README.md
+todo.md
+
+# Config/secrets
+.env
+.env.*
+config.toml
+
+# Misc
+Kimi_Agent_*/
+test*

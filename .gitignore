@@ -1,12 +1,33 @@
-
+# IDE/Editor
 .codegpt
 .aider*
+.claude/
+.vscode/
+.idea/
+
+# Python
 /.venv
-__pycache__
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node/Frontend
+node_modules/
+src/frontend/dist/
+
+# Downloads and data
+manga_downloads/
+*.log
+
+# Config/secrets
 config.toml
 .env
+.env.*
+
+# Misc
 manga.txt
-.claude/
 claude.md
 todo.md
 test*
+Kimi_Agent_*/

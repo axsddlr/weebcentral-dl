@@ -18,7 +18,6 @@ from src.config import DownloaderConfig
 
 # --- Constants ---
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
-PARALLEL_DOWNLOAD = 99
 WEEBCENTRAL_URL = "https://weebcentral.com"
 
 
@@ -35,35 +34,52 @@ class WeebCentralDownloader:
         os.makedirs(self.output_dir, exist_ok=True)
 
     def log_not_found(self, msg: str):
+        """Log failed search attempts to not_found.log.
+
+        Args:
+            msg: Error message to log (e.g., "NOT FOUND: Title" or "MULTIPLE UNIQUE: Title")
+        """
         try:
             logfile = os.path.join(self.output_dir, "not_found.log")
             with open(logfile, "a", encoding="utf-8") as f:
                 f.write(msg + "\n")
         except Exception as e:
-            print(f"[WARN] Could not write to not_found.log: {e}")
+            logger.warning(f"Could not write to not_found.log: {e}")
 
     def get_series_id_from_query(self, query: str) -> Optional[Tuple[str, str]]:
+        """Search WeebCentral for manga and extract series ID.
+
+        Args:
+            query: Manga title to search for
+
+        Returns:
+            Tuple of (series_id, series_title) if found, or (None, None) if not found.
+            If multiple results found, returns first match and logs warning.
+
+        Note:
+            Logs failures to not_found.log for bulk operations tracking.
+        """
         encoded = quote_plus(query)
         url = f"{WEEBCENTRAL_URL}/search/data?author=&text={encoded}&sort=Best%20Match&order=Descending&official=Any&anime=Any&adult=Any&display_mode=Full%20Display"
         resp = self.scraper.get(url)
         results = re.findall(r'/series/([^"/]+/[^"]+)', resp.text)
         if not results:
             msg = f"NOT FOUND: {query}"
-            print(msg)
+            logger.warning(msg)
             self.log_not_found(msg)
             return None, None
 
         unique_results = sorted(list(set(results)))
         if not unique_results:
             msg = f"NO UNIQUE LINKS: {query}"
-            print(msg)
+            logger.warning(msg)
             self.log_not_found(msg)
             return None, None
 
         if len(unique_results) > 1:
             msg = f"MULTIPLE UNIQUE: {query} => {unique_results}"
-            print(
-                f"Warning: Multiple unique search results for '{query}', picking the first: {unique_results[0]}"
+            logger.warning(
+                f"Multiple unique search results for '{query}', picking the first: {unique_results[0]}"
             )
             self.log_not_found(msg)
 
@@ -71,6 +87,18 @@ class WeebCentralDownloader:
         return series_id, series_title
 
     def fetch_chapter_list(self, series_id: str) -> List[Tuple[str, str, str]]:
+        """Fetch full chapter list for a manga series.
+
+        Args:
+            series_id: WeebCentral series ID (auto-converted to uppercase)
+
+        Returns:
+            List of tuples: (chapter_type, chapter_number, chapter_id)
+            Sorted in reverse order (newest first)
+
+        Note:
+            Attempts JSON API first, falls back to HTML parsing if unavailable.
+        """
         series_id = series_id.upper()
         url = f"{WEEBCENTRAL_URL}/series/{series_id}/full-chapter-list"
         resp = self.scraper.get(url)
@@ -196,6 +224,18 @@ class WeebCentralDownloader:
         return metadata
 
     def get_latest_downloaded_chapter(self, series_title: str) -> Optional[float]:
+        """Find the highest chapter number already downloaded.
+
+        Args:
+            series_title: Sanitized series title (directory name)
+
+        Returns:
+            Latest chapter number as float (e.g., 12.5), or None if no chapters found
+
+        Note:
+            Parses both .zip (vol_NNN) and .cbz (series-title-N) archive formats.
+            Handles decimal chapters (e.g., 12.5) correctly.
+        """
         out_dir = os.path.join(self.output_dir, series_title)
         if not os.path.exists(out_dir):
             return None
@@ -220,6 +260,19 @@ class WeebCentralDownloader:
         return max(chapter_nums) if chapter_nums else None
 
     def chapter_already_downloaded(self, chap_num: str, out_dir: str) -> bool:
+        """Check if a chapter archive already exists (zip format only).
+
+        Args:
+            chap_num: Chapter number as string (e.g., "12" or "12.5")
+            out_dir: Output directory to check
+
+        Returns:
+            True if matching .zip archive found, False otherwise
+
+        Note:
+            Only checks for .zip format (vol_NNN.zip), not .cbz format.
+            Used when --zip flag is enabled.
+        """
         if not os.path.exists(out_dir):
             return False
         base = int(float(chap_num))
@@ -230,6 +283,20 @@ class WeebCentralDownloader:
         return False
 
     def download_image(self, img_url: str, dest_folder: str, referer: str):
+        """Download a single manga page image with retry logic.
+
+        Args:
+            img_url: Full URL to the image
+            dest_folder: Destination directory for downloaded image
+            referer: Referer header value (chapter page URL)
+
+        Returns:
+            Path to downloaded image file, or None if download failed after all retries
+
+        Note:
+            Implements exponential backoff for connection errors.
+            Recreates scraper session on persistent connection failures.
+        """
         retry_count = 0
         while retry_count < self.config.max_retries:
             try:
@@ -265,6 +332,22 @@ class WeebCentralDownloader:
     def download_chapter_images(
         self, chapter_id: str, chapter_num: str, outdir: str, chapter_dir_name: str
     ) -> Optional[str]:
+        """Download all images for a manga chapter.
+
+        Args:
+            chapter_id: WeebCentral chapter ID
+            chapter_num: Chapter number (for logging)
+            outdir: Base output directory (typically temp directory)
+            chapter_dir_name: Subdirectory name for this chapter
+
+        Returns:
+            Path to chapter directory containing downloaded images, or None if no images found
+
+        Note:
+            Supports both parallel and sequential download modes.
+            Worker count controlled by config.parallel_workers (default: 99).
+            Attempts JSON API first, falls back to HTML parsing.
+        """
         chapter_dir = os.path.join(outdir, chapter_dir_name)
         os.makedirs(chapter_dir, exist_ok=True)
         url = f"{WEEBCENTRAL_URL}/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
@@ -289,12 +372,17 @@ class WeebCentralDownloader:
             logger.error(f"No images found in chapter {chapter_num}!")
             return None
 
-        if self.config.sequence:
+        # Determine worker count (1 for sequential, config value for parallel)
+        max_workers = 1 if self.config.sequence else self.config.parallel_workers
+
+        if max_workers == 1:
+            # Sequential download
             for img_url in img_urls:
                 self.download_image(img_url, chapter_dir, url)
         else:
+            # Parallel download
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=PARALLEL_DOWNLOAD
+                max_workers=max_workers
             ) as executor:
                 futures = [
                     executor.submit(self.download_image, img_url, chapter_dir, url)
@@ -304,7 +392,17 @@ class WeebCentralDownloader:
         return chapter_dir
 
     def get_cover_image_path(self, series_title: str) -> Optional[str]:
-        """Find the cover image (jpg or webp) for the series."""
+        """Find the cover image file for a manga series.
+
+        Args:
+            series_title: Sanitized series title (directory name)
+
+        Returns:
+            Full path to cover image (.jpg or .webp), or None if not found
+
+        Note:
+            Identifies cover by 26-character filename (WeebCentral series ID length).
+        """
         series_dir = os.path.join(self.output_dir, series_title)
         if not os.path.exists(series_dir):
             return None
@@ -317,11 +415,25 @@ class WeebCentralDownloader:
     def archive_chapter(
         self, chapter_dir: str, series_title: str, chapter_num: str, chapter_type: str
     ):
+        """Create zip/cbz archive from downloaded chapter images.
+
+        Args:
+            chapter_dir: Directory containing downloaded images
+            series_title: Sanitized series title
+            chapter_num: Chapter number as string
+            chapter_type: Chapter type (empty for standard chapters, "Extra", "Bonus", etc.)
+
+        Note:
+            - Creates .zip (vol_NNN) or .cbz (series-N) based on config.zip flag
+            - Includes series cover as first page (000-cover.jpg)
+            - Cleans up source directory after archiving
+            - Skips archiving if no images found
+        """
         out_dir = os.path.join(self.output_dir, series_title)
         os.makedirs(out_dir, exist_ok=True)
 
         if not has_images(chapter_dir):
-            print(f"Warning: No images found in {chapter_dir} (skipping archive)")
+            logger.warning(f"No images found in {chapter_dir} (skipping archive)")
             shutil.rmtree(chapter_dir)
             return
 
@@ -348,7 +460,7 @@ class WeebCentralDownloader:
                 for img_file in image_files:
                     zf.write(img_file, arcname=os.path.basename(img_file))
 
-            print(f"Created zip archive: {zip_path}")
+            logger.info(f"Created zip archive: {zip_path}")
         else:
             out_file = os.path.join(
                 out_dir,
@@ -365,7 +477,7 @@ class WeebCentralDownloader:
                 for img_file in image_files:
                     zf.write(img_file, arcname=os.path.basename(img_file))
 
-            print(f"Wrote {out_file}")
+            logger.info(f"Wrote {out_file}")
         shutil.rmtree(chapter_dir)
 
     def download_chapters(
@@ -375,6 +487,20 @@ class WeebCentralDownloader:
         series_title: str,
         is_fresh: bool,
     ):
+        """Download and archive multiple chapters.
+
+        Args:
+            chapters: Full list of available chapters (type, number, id)
+            chapters_to_download: Specific chapters to download (None = all)
+            series_title: Sanitized series title
+            is_fresh: Whether this is a new series (affects rate limiting)
+
+        Note:
+            - Processes chapters in reverse order (oldest first)
+            - Implements rate limiting after every N chapters
+            - Uses temp directories for downloads, archives after completion
+            - Skips already-downloaded chapters in zip mode
+        """
         out_dir = os.path.join(self.output_dir, series_title)
         chap_counter = 0
         for chap_type, chap_num, chap_id in reversed(chapters):
@@ -393,10 +519,10 @@ class WeebCentralDownloader:
             _, chapter_dir_name = get_vol_and_chapter_names(chap_num)
 
             if self.config.zip and self.chapter_already_downloaded(chap_num, out_dir):
-                print(f"Skipping already-downloaded chapter {chap_num} (zip found)")
+                logger.info(f"Skipping already-downloaded chapter {chap_num} (zip found)")
                 continue
 
-            print(f"Downloading chapter {chap_num}")
+            logger.info(f"Downloading chapter {chap_num}")
             temp_dir = tempfile.mkdtemp(prefix=f"{series_title}-{chap_num}_")
             try:
                 chapter_dir = self.download_chapter_images(
@@ -411,10 +537,86 @@ class WeebCentralDownloader:
             chap_counter += 1
             if is_fresh and chap_counter % self.config.rlc == 0:
                 wait = random.randint(15, self.config.max_sleep)
-                print(
-                    f"\n[INFO] Rate limiting: sleeping for {wait} seconds after {chap_counter} chapters\n"
+                logger.info(
+                    f"Rate limiting: sleeping for {wait} seconds after {chap_counter} chapters"
                 )
                 time.sleep(wait)
+
+    def _resolve_series_info(
+        self, title: Optional[str], series_id: Optional[str]
+    ) -> Optional[Tuple[str, str]]:
+        """Resolve series ID and title from provided inputs.
+
+        Args:
+            title: Manga title (for search) or provided title
+            series_id: Direct series ID if available
+
+        Returns:
+            Tuple of (series_id, series_title) or None if resolution fails
+        """
+        if series_id and title:
+            # Both provided (from bulk file format: series_id=title)
+            series_id = series_id.strip()
+            if self.config.use_english_title:
+                series_title = self.get_series_title_by_id(series_id)
+            else:
+                series_title = sanitize_title(title.strip())
+            logger.info(f"Processing series id: {series_id} (title: {series_title})")
+            return series_id, series_title
+
+        elif series_id:
+            series_id = series_id.strip()
+            series_title = self.get_series_title_by_id(series_id)
+            logger.info(f"Processing series id: {series_id} (title: {series_title})")
+            return series_id, series_title
+
+        elif title:
+            search_title = title.replace("-", " ").strip()
+            result = self.get_series_id_from_query(search_title)
+            if not result or not result[0]:
+                logger.warning(f"Skipping '{title}': not found.")
+                return None
+            series_id, series_title = result
+            if self.config.use_english_title:
+                series_title = self.get_series_title_by_id(series_id)
+            return series_id, series_title
+
+        else:
+            logger.error("No title or series_id provided.")
+            return None
+
+    def _determine_chapters_to_download(
+        self, chapters: List[Tuple[str, str, str]],
+        series_title: str,
+        chapters_to_download: Optional[Set[str]]
+    ) -> Optional[Set[str]]:
+        """Determine which chapters to download based on --latest flag.
+
+        Args:
+            chapters: Full list of available chapters
+            series_title: Sanitized series title
+            chapters_to_download: Pre-specified chapters (if any)
+
+        Returns:
+            Set of chapter numbers to download, or None if nothing to download
+        """
+        if not self.config.latest or chapters_to_download is not None:
+            return chapters_to_download
+
+        latest = self.get_latest_downloaded_chapter(series_title)
+        if latest is None:
+            logger.info("No downloaded chapters found, downloading all chapters.")
+            return {chap[1] for chap in chapters}
+
+        new_chapters = {chap[1] for chap in chapters if float(chap[1]) > latest}
+        if not new_chapters:
+            logger.info(f"No new chapters found after chapter {latest}.")
+            return None
+
+        logger.info(
+            f"Downloading new chapters after chapter {latest}: {sorted(list(new_chapters))}"
+        )
+        return new_chapters
 
     def process_manga(
         self,
@@ -422,64 +624,55 @@ class WeebCentralDownloader:
         series_id: Optional[str] = None,
         chapters_to_download: Optional[Set[str]] = None,
     ):
-        if series_id and title:
-            # Both provided (from bulk file format: series_id=title)
-            series_id = series_id.strip()
-            # If --en flag is set, fetch English title from series page
-            if self.config.en:
-                series_title = self.get_series_title_by_id(series_id)
-            else:
-                series_title = sanitize_title(title.strip())
-            print(f"\nProcessing series id: {series_id} (title: {series_title})")
-        elif series_id:
-            series_id = series_id.strip()
-            series_title = self.get_series_title_by_id(series_id)
-            print(f"\nProcessing series id: {series_id} (title: {series_title})")
-        elif title:
-            search_title = title.replace("-", " ").strip()
-            result = self.get_series_id_from_query(search_title)
-            if not result or not result[0]:
-                print(f"Skipping '{title}': not found.")
-                return
-            series_id, series_title = result
-            # If --en flag is set, fetch English title from series page
-            if self.config.en:
-                series_title = self.get_series_title_by_id(series_id)
-        else:
-            print("Error: No title or series_id provided.")
-            return
+        """Process and download manga chapters.
 
+        Args:
+            title: Manga title for search
+            series_id: Direct series ID (bypasses search)
+            chapters_to_download: Specific chapters to download (None = all)
+        """
+        # Resolve series information
+        result = self._resolve_series_info(title, series_id)
+        if not result:
+            return
+        series_id, series_title = result
+
+        # Fetch available chapters
         chapters = self.fetch_chapter_list(series_id)
         if not chapters:
-            print(f"No chapters found for '{title or series_id}'.")
+            logger.warning(f"No chapters found for '{title or series_id}'.")
             return
 
+        # Download cover image
         self.download_cover_image_and_convert(series_id, series_title)
 
+        # Determine download scope
         out_dir = os.path.join(self.output_dir, series_title)
         is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
 
-        if self.config.latest and chapters_to_download is None:
-            latest = self.get_latest_downloaded_chapter(series_title)
-            if latest is None:
-                print("No downloaded chapters found, downloading all chapters.")
-                # When -l is used and no chapters are downloaded, download all
-                chapters_to_download = {chap[1] for chap in chapters}
-            else:
-                chapters_to_download = {
-                    chap[1] for chap in chapters if float(chap[1]) > latest
-                }
-                if not chapters_to_download:
-                    print(f"No new chapters found after chapter {latest}.")
-                    return
-                print(
-                    f"Downloading new chapters after chapter {latest}: {sorted(list(chapters_to_download))}"
-                )
+        chapters_to_download = self._determine_chapters_to_download(
+            chapters, series_title, chapters_to_download
+        )
+        if chapters_to_download is not None and not chapters_to_download:
+            return  # Nothing to download
 
-        logger.debug(f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})")
+        logger.debug(
+            f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} "
+            f"(zip mode: {self.config.zip})"
+        )
         self.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
 
     def download_cover_image_and_convert(self, series_id: str, series_title: str):
+        """Download series cover image and convert WebP to JPG.
+
+        Args:
+            series_id: WeebCentral series ID
+            series_title: Sanitized series title
+
+        Note:
+            WebP images are automatically converted to JPG for compatibility.
+            Original WebP file is deleted after conversion.
+        """
         cover_path = self.download_cover_image(series_id, series_title)
         if cover_path and cover_path.endswith(".webp"):
             try:
@@ -492,6 +685,19 @@ class WeebCentralDownloader:
                 logger.warning(f"Could not convert cover image {cover_path}: {e}")
 
     def download_cover_image(self, series_id: str, series_title: str):
+        """Download manga series cover image.
+
+        Args:
+            series_id: WeebCentral series ID
+            series_title: Sanitized series title
+
+        Returns:
+            Path to downloaded cover image, or None if already exists or download failed
+
+        Note:
+            Skips download if .jpg cover already exists in series directory.
+            Extracts cover URL from series page <source srcset> tag.
+        """
         out_dir = os.path.join(self.output_dir, series_title)
         if os.path.exists(out_dir) and any(f.lower().endswith(".jpg") for f in os.listdir(out_dir)):
             logger.debug(f"Cover image already exists for {series_title}, skipping download")

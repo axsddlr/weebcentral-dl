@@ -1,0 +1,144 @@
+"""Pydantic request/response models for the API"""
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from enum import Enum
+
+
+class TaskStatus(str, Enum):
+    pending = "pending"
+    downloading = "downloading"
+    completed = "completed"
+    failed = "failed"
+    paused = "paused"
+
+
+# --- Search ---
+
+class MangaResult(BaseModel):
+    id: str
+    title: str
+    englishTitle: Optional[str] = None
+    coverUrl: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    author: list[str] = []
+    tags: list[str] = []
+
+
+class ChapterInfo(BaseModel):
+    id: str
+    number: str
+    type: str = "Chapter"
+
+
+class SearchResponse(BaseModel):
+    results: list[MangaResult]
+
+
+class ChapterListResponse(BaseModel):
+    seriesId: str
+    chapters: list[ChapterInfo]
+
+
+# --- Download Queue ---
+
+class AddToQueueRequest(BaseModel):
+    seriesId: str
+    mangaTitle: str
+    chapters: list[str]  # chapter IDs to download
+
+
+class DownloadTaskResponse(BaseModel):
+    id: str
+    mangaId: str
+    mangaTitle: str
+    chapterId: str
+    chapterNumber: str
+    status: TaskStatus
+    progress: float = 0
+    totalPages: int = 0
+    downloadedPages: int = 0
+    error: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class QueueResponse(BaseModel):
+    tasks: list[DownloadTaskResponse]
+    isRunning: bool
+    totalTasks: int
+    completedTasks: int
+    failedTasks: int
+
+
+# --- Library ---
+
+class LibrarySeriesResponse(BaseModel):
+    id: str
+    title: str
+    coverUrl: Optional[str] = None
+    totalChapters: int
+    path: str
+
+
+class LibraryChapterResponse(BaseModel):
+    id: str
+    number: str
+    filename: str
+    totalPages: int
+    path: str
+
+
+class PageListResponse(BaseModel):
+    pages: list[str]
+    totalPages: int
+
+
+# --- Config ---
+
+class ConfigResponse(BaseModel):
+    outputDir: str
+    latest: bool
+    sequence: bool
+    zip: bool
+    verbose: bool
+    useEnglishTitle: bool
+    rlc: int
+    maxSleep: int
+    maxRetries: int
+    parallelWorkers: int
+
+
+class ConfigUpdateRequest(BaseModel):
+    outputDir: Optional[str] = None
+    latest: Optional[bool] = None
+    sequence: Optional[bool] = None
+    zip: Optional[bool] = None
+    verbose: Optional[bool] = None
+    useEnglishTitle: Optional[bool] = None
+    rlc: Optional[int] = None
+    maxSleep: Optional[int] = None
+    maxRetries: Optional[int] = None
+    parallelWorkers: Optional[int] = None
+
+
+# --- Stats ---
+
+class StatsResponse(BaseModel):
+    totalSeries: int
+    totalChapters: int
+    storageUsed: str
+    queueActive: int
+    queueCompleted: int
+    queueFailed: int
+
+
+# --- Logs ---
+
+class LogEntryResponse(BaseModel):
+    id: str
+    timestamp: datetime
+    level: str
+    message: str
+    source: Optional[str] = None

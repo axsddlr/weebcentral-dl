@@ -3,7 +3,8 @@ import os
 import tomli
 from pathlib import Path
 from typing import Optional, Dict, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from loguru import logger
 
 
 @dataclass
@@ -20,6 +21,14 @@ class DownloaderConfig:
     rlc: int = 10
     max_sleep: int = 120
     max_retries: int = 5
+
+    # Parallel download settings
+    # Default: 99 workers (empirically determined as optimal for WeebCentral)
+    # Reasoning: High worker count maximizes throughput for image downloads
+    # where network latency dominates over CPU/memory usage. WeebCentral's
+    # CDN handles high concurrency well. Reduce if experiencing connection
+    # issues or rate limiting. Set to 1 for sequential downloads (same as --sequence).
+    parallel_workers: int = 99
 
     # Paths
     output_dir: str = "./manga_downloads"
@@ -50,7 +59,7 @@ class ConfigLoader:
                 self.raw_config = tomli.load(f)
                 return self.raw_config
         except Exception as e:
-            print(f"[WARN] Failed to load config from {self.config_path}: {e}")
+            logger.warning(f"Failed to load config from {self.config_path}: {e}")
             return {}
 
     def get_downloader_config(self, cli_overrides: Optional[Dict[str, Any]] = None) -> DownloaderConfig:
@@ -103,3 +112,24 @@ def load_config(config_path: str = "config.toml", cli_overrides: Optional[Dict[s
     """
     loader = ConfigLoader(config_path)
     return loader.get_downloader_config(cli_overrides)
+
+
+def save_config(config: DownloaderConfig, config_path: str = "config.toml"):
+    """Save configuration to TOML file.
+
+    Args:
+        config: DownloaderConfig instance to save
+        config_path: Path to TOML config file
+    """
+    import tomli_w
+
+    # Only save persistent settings (not runtime-specific ones like query, series_id, etc.)
+    persistent_fields = {
+        'latest', 'sequence', 'zip', 'verbose', 'use_english_title',
+        'rlc', 'max_sleep', 'max_retries', 'parallel_workers', 'output_dir',
+    }
+    config_dict = {k: v for k, v in asdict(config).items() if k in persistent_fields}
+    toml_data = {'downloader': config_dict}
+
+    with open(config_path, 'wb') as f:
+        tomli_w.dump(toml_data, f)
