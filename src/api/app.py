@@ -14,6 +14,7 @@ from src.api.services.queue_manager import QueueManager
 from src.api.services.log_collector import LogCollector
 from src.config import DownloaderConfig, load_config
 from src.downloader import WeebCentralDownloader
+from src.utils import resolve_safe_path
 
 
 @asynccontextmanager
@@ -68,9 +69,16 @@ def create_app() -> FastAPI:
         async def serve_spa(request: Request, full_path: str):
             """SPA fallback: serve index.html for all non-API routes."""
             # Try to serve the exact file first
-            file_path = web_dir / full_path
-            if full_path and file_path.exists() and file_path.is_file():
-                return FileResponse(str(file_path))
+            try:
+                # full_path might be empty for root
+                if full_path:
+                    file_path = Path(resolve_safe_path(str(web_dir), full_path))
+                    if file_path.exists() and file_path.is_file():
+                        return FileResponse(str(file_path))
+            except ValueError:
+                # Path traversal attempt or invalid path
+                pass
+
             # Fallback to index.html for client-side routing
             index_path = web_dir / "index.html"
             if index_path.exists():
