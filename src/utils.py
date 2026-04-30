@@ -32,3 +32,23 @@ def has_images(folder: str) -> bool:
         if f.lower().endswith(exts):
             return True
     return False
+
+
+def resolve_safe_path(base_dir: str, *path_parts: str) -> str:
+    """
+    Safely joins path parts and ensures the result is within the base directory.
+    Raises ValueError if the path escapes the base directory.
+    """
+    base_dir = os.path.abspath(base_dir)
+    joined_path = os.path.abspath(os.path.join(base_dir, *path_parts))
+
+    # Use commonpath to ensure containment
+    # commonpath raises ValueError if paths are on different drives on Windows, 
+    # which is also a form of "escape".
+    try:
+        if os.path.commonpath([base_dir, joined_path]) != base_dir:
+            raise ValueError("Path escaped base directory")
+    except ValueError:
+        raise ValueError("Path escaped base directory")
+
+    return joined_path

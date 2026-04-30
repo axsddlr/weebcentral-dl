@@ -5,6 +5,8 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
+from src.utils import resolve_safe_path
+
 
 def scan_library(output_dir: str) -> list[dict]:
     """Scan the output directory for downloaded manga series.
@@ -47,7 +49,11 @@ def scan_chapters(output_dir: str, series_dir: str) -> list[dict]:
     Returns:
         List of chapter dicts sorted by chapter number.
     """
-    series_path = os.path.join(output_dir, series_dir)
+    try:
+        series_path = resolve_safe_path(output_dir, series_dir)
+    except ValueError:
+        return []
+
     if not os.path.exists(series_path):
         return []
 
@@ -78,7 +84,11 @@ def get_archive_pages(output_dir: str, series_dir: str, archive: str) -> list[st
     Returns:
         Sorted list of image filenames.
     """
-    archive_path = os.path.join(output_dir, series_dir, archive)
+    try:
+        archive_path = resolve_safe_path(output_dir, series_dir, archive)
+    except ValueError:
+        return []
+
     if not os.path.exists(archive_path):
         return []
 
@@ -100,7 +110,11 @@ def read_page_from_archive(output_dir: str, series_dir: str, archive: str, page_
     Returns:
         Image bytes, or None if not found.
     """
-    archive_path = os.path.join(output_dir, series_dir, archive)
+    try:
+        archive_path = resolve_safe_path(output_dir, series_dir, archive)
+    except ValueError:
+        return None
+
     if not os.path.exists(archive_path):
         return None
 
@@ -113,7 +127,10 @@ def read_page_from_archive(output_dir: str, series_dir: str, archive: str, page_
 
 def get_cover_path(output_dir: str, series_dir: str) -> Optional[str]:
     """Find cover image file in series directory."""
-    series_path = os.path.join(output_dir, series_dir)
+    try:
+        series_path = resolve_safe_path(output_dir, series_dir)
+    except ValueError:
+        return None
     return _find_cover(series_path)
 
 

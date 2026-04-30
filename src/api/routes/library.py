@@ -5,6 +5,7 @@ import shutil
 from fastapi import APIRouter, Request, HTTPException
 
 from src.api.services.library_scanner import scan_library, scan_chapters
+from src.utils import resolve_safe_path
 
 router = APIRouter(tags=["library"])
 
@@ -31,14 +32,13 @@ async def list_chapters(request: Request, series_dir: str):
 async def delete_series(request: Request, series_dir: str):
     """Delete an entire series directory."""
     output_dir = os.path.abspath(request.app.state.config.output_dir)
-    series_path = os.path.join(output_dir, series_dir)
+    try:
+        series_path = resolve_safe_path(output_dir, series_dir)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Invalid path")
 
     if not os.path.exists(series_path):
         raise HTTPException(status_code=404, detail="Series not found")
-
-    # Safety check: ensure it's inside the output directory
-    if not os.path.abspath(series_path).startswith(output_dir):
-        raise HTTPException(status_code=403, detail="Invalid path")
 
     shutil.rmtree(series_path)
     return {"deleted": True}
