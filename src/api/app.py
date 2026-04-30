@@ -17,6 +17,23 @@ from src.downloader import WeebCentralDownloader
 from src.utils import resolve_safe_path
 
 
+async def verify_api_token(request: Request):
+    """Simple middleware to check for API token in headers or query."""
+    token = os.getenv("API_TOKEN")
+    if not token:
+        return
+
+    # Skip auth for read-only routes if we want, but task says protect state-changing routes
+    # For now, let's keep it simple: if API_TOKEN is set, all non-GET API routes need it.
+    if request.method != "GET" and request.url.path.startswith("/api/"):
+        header_token = request.headers.get("X-API-Token")
+        query_token = request.query_params.get("token")
+        
+        if header_token != token and query_token != token:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialize shared resources."""
@@ -47,14 +64,33 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS for dev mode (vite dev server on different port)
+    # CORS: Allow localhost (dev) and server's own address
+    # For production, we should ideally know the specific domain
+    allowed_origins = [
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",  # Production server (self)
+        "http://127.0.0.1:8000",
+    ]
+
+    # Add optional HOST env for remote access
+    host_env = os.getenv("HOST")
+    if host_env and host_env not in ["0.0.0.0", "127.0.0.1", "localhost"]:
+        allowed_origins.append(f"http://{host_env}:8000")
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Simple auth middleware for state-changing API routes
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next):
+        await verify_api_token(request)
+        return await call_next(request)
 
     # API routes
     app.include_router(api_router)
