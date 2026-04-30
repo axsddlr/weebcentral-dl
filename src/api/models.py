@@ -1,8 +1,9 @@
 """Pydantic request/response models for the API"""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+import os
 
 
 class TaskStatus(str, Enum):
@@ -111,16 +112,35 @@ class ConfigResponse(BaseModel):
 
 
 class ConfigUpdateRequest(BaseModel):
-    outputDir: Optional[str] = None
+    outputDir: Optional[str] = Field(None, description="Output directory for downloads")
     latest: Optional[bool] = None
     sequence: Optional[bool] = None
     zip: Optional[bool] = None
     verbose: Optional[bool] = None
     useEnglishTitle: Optional[bool] = None
-    rlc: Optional[int] = None
-    maxSleep: Optional[int] = None
-    maxRetries: Optional[int] = None
-    parallelWorkers: Optional[int] = None
+    rlc: Optional[int] = Field(None, ge=1, le=1000, description="Rate limit count (chapters)")
+    maxSleep: Optional[int] = Field(None, ge=0, le=3600, description="Max sleep time (seconds)")
+    maxRetries: Optional[int] = Field(None, ge=0, le=100, description="Max retries per image")
+    parallelWorkers: Optional[int] = Field(None, ge=1, le=200, description="Parallel download workers")
+
+    @field_validator("outputDir")
+    @classmethod
+    def validate_output_dir(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        
+        # Prevent absolute paths to sensitive areas or obvious traversal
+        # We can't easily use resolve_safe_path here without knowing the root, 
+        # but we can prevent some obvious bad ones.
+        v = v.strip()
+        if not v:
+            raise ValueError("outputDir cannot be empty")
+            
+        # Basic traversal check
+        if ".." in v:
+            raise ValueError("outputDir cannot contain path traversal sequences")
+            
+        return v
 
 
 # --- Stats ---
