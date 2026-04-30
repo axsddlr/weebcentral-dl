@@ -189,32 +189,38 @@ class QueueManager:
                     chapter_dir_name,
                 )
 
-                if chapter_dir:
+                if chapter_dir and os.path.exists(chapter_dir):
                     # Count images for progress
                     image_count = sum(
                         1 for f in os.listdir(chapter_dir)
                         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif'))
                     )
-                    task.total_pages = image_count
-                    task.downloaded_pages = image_count
-                    task.progress = 100
-                    task.updated_at = datetime.now()
-                    await self._broadcast_progress(task)
+                    
+                    if image_count == 0:
+                        task.status = "failed"
+                        task.error = "All image downloads failed for this chapter"
+                        logger.error(f"Failed: {task.manga_title} Ch.{task.chapter_number}: No images downloaded")
+                    else:
+                        task.total_pages = image_count
+                        task.downloaded_pages = image_count
+                        task.progress = 100
+                        task.updated_at = datetime.now()
+                        await self._broadcast_progress(task)
 
-                    # Determine chapter type
-                    ct = "" if task.chapter_type in ["Chapter", "#", ""] else task.chapter_type
+                        # Determine chapter type
+                        ct = "" if task.chapter_type in ["Chapter", "#", ""] else task.chapter_type
 
-                    # Archive
-                    await asyncio.to_thread(
-                        self.downloader.archive_chapter,
-                        chapter_dir,
-                        task.manga_title,
-                        task.chapter_number,
-                        ct,
-                    )
+                        # Archive
+                        await asyncio.to_thread(
+                            self.downloader.archive_chapter,
+                            chapter_dir,
+                            task.manga_title,
+                            task.chapter_number,
+                            ct,
+                        )
 
-                    task.status = "completed"
-                    logger.info(f"Completed: {task.manga_title} Ch.{task.chapter_number}")
+                        task.status = "completed"
+                        logger.info(f"Completed: {task.manga_title} Ch.{task.chapter_number}")
                 else:
                     task.status = "failed"
                     task.error = "No images found in chapter"
