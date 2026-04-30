@@ -33,6 +33,28 @@ class WeebCentralDownloader:
         self.output_dir = os.path.abspath(config.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
 
+    def _request(self, method: str, url: str, **kwargs):
+        """Centralized HTTP request handler with timeout and status check.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: Target URL
+            **kwargs: Additional arguments for requests (headers, timeout, etc.)
+
+        Returns:
+            Response object
+
+        Raises:
+            requests.exceptions.HTTPError: If response status is not 200
+            requests.exceptions.Timeout: If request times out
+        """
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 30
+        
+        resp = self.scraper.request(method, url, **kwargs)
+        resp.raise_for_status()
+        return resp
+
     def log_not_found(self, msg: str):
         """Log failed search attempts to not_found.log.
 
@@ -61,30 +83,34 @@ class WeebCentralDownloader:
         """
         encoded = quote_plus(query)
         url = f"{WEEBCENTRAL_URL}/search/data?author=&text={encoded}&sort=Best%20Match&order=Descending&official=Any&anime=Any&adult=Any&display_mode=Full%20Display"
-        resp = self.scraper.get(url)
-        results = re.findall(r'/series/([^"/]+/[^"]+)', resp.text)
-        if not results:
-            msg = f"NOT FOUND: {query}"
-            logger.warning(msg)
-            self.log_not_found(msg)
+        try:
+            resp = self._request("GET", url)
+            results = re.findall(r'/series/([^"/]+/[^"]+)', resp.text)
+            if not results:
+                msg = f"NOT FOUND: {query}"
+                logger.warning(msg)
+                self.log_not_found(msg)
+                return None, None
+
+            unique_results = sorted(list(set(results)))
+            if not unique_results:
+                msg = f"NO UNIQUE LINKS: {query}"
+                logger.warning(msg)
+                self.log_not_found(msg)
+                return None, None
+
+            if len(unique_results) > 1:
+                msg = f"MULTIPLE UNIQUE: {query} => {unique_results}"
+                logger.warning(
+                    f"Multiple unique search results for '{query}', picking the first: {unique_results[0]}"
+                )
+                self.log_not_found(msg)
+
+            series_id, series_title = unique_results[0].split("/")
+            return series_id, series_title
+        except Exception as e:
+            logger.error(f"Search failed for '{query}': {e}")
             return None, None
-
-        unique_results = sorted(list(set(results)))
-        if not unique_results:
-            msg = f"NO UNIQUE LINKS: {query}"
-            logger.warning(msg)
-            self.log_not_found(msg)
-            return None, None
-
-        if len(unique_results) > 1:
-            msg = f"MULTIPLE UNIQUE: {query} => {unique_results}"
-            logger.warning(
-                f"Multiple unique search results for '{query}', picking the first: {unique_results[0]}"
-            )
-            self.log_not_found(msg)
-
-        series_id, series_title = unique_results[0].split("/")
-        return series_id, series_title
 
     def fetch_chapter_list(self, series_id: str) -> List[Tuple[str, str, str]]:
         """Fetch full chapter list for a manga series.
@@ -101,7 +127,12 @@ class WeebCentralDownloader:
         """
         series_id = series_id.upper()
         url = f"{WEEBCENTRAL_URL}/series/{series_id}/full-chapter-list"
-        resp = self.scraper.get(url)
+        
+        try:
+            resp = self._request("GET", url)
+        except Exception as e:
+            logger.error(f"Failed to fetch chapter list for {series_id}: {e}")
+            return []
 
         # Try JSON API first
         try:
@@ -150,7 +181,7 @@ class WeebCentralDownloader:
         """
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
-            resp = self.scraper.get(url)
+            resp = self._request("GET", url)
 
             # Extract H1 title
             m = re.search(r"<h1[^>]*>([^<]+)</h1>", resp.text)
@@ -191,7 +222,7 @@ class WeebCentralDownloader:
         }
 
         try:
-            resp = self.scraper.get(url)
+            resp = self._request("GET", url)
             text = resp.text
 
             # Extract title
@@ -351,7 +382,13 @@ class WeebCentralDownloader:
         chapter_dir = os.path.join(outdir, chapter_dir_name)
         os.makedirs(chapter_dir, exist_ok=True)
         url = f"{WEEBCENTRAL_URL}/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
-        resp = self.scraper.get(url)
+        
+        try:
+            resp = self._request("GET", url)
+        except Exception as e:
+            logger.error(f"Failed to fetch image list for chapter {chapter_num}: {e}")
+            return None
+
         img_urls = []
 
         # Try JSON API first
@@ -705,7 +742,7 @@ class WeebCentralDownloader:
 
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
-            resp = self.scraper.get(url)
+            resp = self._request("GET", url)
             m = re.search(r'<source srcset="([^"]+)"', resp.text)
             if m:
                 cover_url = m.group(1)
