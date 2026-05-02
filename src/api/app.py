@@ -91,7 +91,7 @@ def create_app() -> FastAPI:
         allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
-        allow_headers=["*"],
+        allow_headers=["Content-Type", "X-API-Token"],
     )
 
     # Security headers for production SPA
