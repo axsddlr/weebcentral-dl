@@ -6,6 +6,7 @@
 
 const BASE = '';  // Same origin in production, proxied in dev
 const DEFAULT_TIMEOUT = 30_000;
+const MAX_RETRIES = 2;
 
 interface RequestOptions extends RequestInit {
   timeout?: number;
@@ -13,22 +14,39 @@ interface RequestOptions extends RequestInit {
 
 async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...fetchOptions.headers },
-    ...fetchOptions,
-    signal: controller.signal,
-  });
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  clearTimeout(timeoutId);
+    try {
+      const res = await fetch(`${BASE}${path}`, {
+        headers: { 'Content-Type': 'application/json', ...fetchOptions.headers },
+        ...fetchOptions,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`API ${res.status}: ${text}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        const error = new Error(`API ${res.status}: ${text}`);
+        if (res.status >= 500 && attempt <= MAX_RETRIES) {
+          lastError = error;
+          continue;
+        }
+        throw error;
+      }
+      return res.json();
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt > MAX_RETRIES || (err instanceof DOMException && err.name === 'AbortError')) {
+        throw lastError;
+      }
+    }
   }
-  return res.json();
+  throw lastError ?? new Error('Request failed');
 }
 
 // --- Search ---

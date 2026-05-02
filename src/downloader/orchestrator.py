@@ -116,8 +116,7 @@ class DownloadOrchestrator:
                 if chapter_dir:
                     self.archiver.archive_chapter(chapter_dir, series_title, chap_num, ct)
             finally:
-                if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
             chap_counter += 1
             if chap_counter % self.config.rlc == 0:
