@@ -1,15 +1,29 @@
 /**
  * Centralized API client for WeebCentral Downloader backend.
  * All fetch calls go through this module.
+ * Supports request timeout (default 30s) and AbortSignal for unmount cancellation.
  */
 
 const BASE = '';  // Same origin in production, proxied in dev
+const DEFAULT_TIMEOUT = 30_000;
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+interface RequestOptions extends RequestInit {
+  timeout?: number;
+}
+
+async function request<T>(path: string, options?: RequestOptions): Promise<T> {
+  const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
+    headers: { 'Content-Type': 'application/json', ...fetchOptions.headers },
+    ...fetchOptions,
+    signal: controller.signal,
   });
+
+  clearTimeout(timeoutId);
+
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`API ${res.status}: ${text}`);
