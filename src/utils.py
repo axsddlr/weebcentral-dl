@@ -48,10 +48,11 @@ def has_images(folder: str) -> bool:
 def resolve_safe_path(base_dir: str, *path_parts: str) -> str:
     """
     Safely joins path parts and ensures the result is within the base directory.
+    Resolves symlinks via realpath() to prevent symlink-based escapes.
     Raises ValueError if the path escapes the base directory.
     """
-    base_dir = os.path.abspath(base_dir)
-    joined_path = os.path.abspath(os.path.join(base_dir, *path_parts))
+    base_dir = os.path.realpath(os.path.abspath(base_dir))
+    joined_path = os.path.realpath(os.path.abspath(os.path.join(base_dir, *path_parts)))
 
     # Use commonpath to ensure containment
     # commonpath raises ValueError if paths are on different drives on Windows, 
