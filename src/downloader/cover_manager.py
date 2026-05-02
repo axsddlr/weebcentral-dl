@@ -43,11 +43,18 @@ class CoverManager:
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
             resp = self.http.request("GET", url)
-            m = re.search(r'<source srcset="([^"]+)"', resp.text)
+            text = resp.text
+            if "<h1" not in text and "series/index" in text.lower():
+                logger.warning(
+                    f"Cover page for {series_id} returned unexpected content "
+                    f"(possible captcha or redirect)"
+                )
+                return None
+            m = re.search(r'<source srcset="([^"]+)"', text)
             if m:
                 cover_url = m.group(1)
                 os.makedirs(out_dir, exist_ok=True)
                 return self.image_downloader.download_image(cover_url, out_dir, url)
         except Exception as e:
-            logger.warning(f"Could not download cover image for series_id {series_id}: {e}")
+            logger.warning(f"Could not download cover image for series_id {series_id}: {type(e).__name__}: {e}")
         return None

@@ -15,10 +15,17 @@ class MetadataExtractor:
         try:
             resp = self.http.request("GET", url)
             text = resp.text
+            if "<h1" not in text and "series/index" in text.lower():
+                logger.warning(
+                    f"Series page for {series_id} returned unexpected content "
+                    f"(possible captcha or redirect). "
+                    f"First 200 chars: {text[:200]}"
+                )
+                return metadata
             metadata.update(self._parse_metadata(text))
             metadata["coverUrl"] = self._extract_cover_url(text)
         except Exception as e:
-            logger.warning(f"Could not extract metadata for series_id {series_id}: {e}")
+            logger.warning(f"Could not extract metadata for series_id {series_id}: {type(e).__name__}: {e}")
         return metadata
 
     @staticmethod
