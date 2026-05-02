@@ -2,8 +2,8 @@
 import os
 import tomli
 from pathlib import Path
-from typing import Optional, Dict, Any
-from dataclasses import dataclass, asdict
+from typing import Optional, Dict, Any, List
+from dataclasses import dataclass, asdict, field
 from loguru import logger
 
 
@@ -32,6 +32,7 @@ class DownloaderConfig:
 
     # Paths
     output_dir: str = "./manga_downloads"
+    library_paths: List[str] = field(default_factory=list)
 
     # Bulk/Docker mode
     bulk_file: Optional[str] = None
@@ -146,6 +147,7 @@ def save_config(config: DownloaderConfig, config_path: str | None = None):
     persistent_fields = {
         'latest', 'sequence', 'zip', 'verbose', 'use_english_title',
         'rlc', 'max_sleep', 'max_retries', 'parallel_workers', 'output_dir',
+        'library_paths',
     }
     config_dict = {k: v for k, v in asdict(config).items() if k in persistent_fields}
     toml_data = {'downloader': config_dict}

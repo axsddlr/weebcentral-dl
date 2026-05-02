@@ -108,6 +108,7 @@ class ConfigResponse(BaseModel):
     maxSleep: int
     maxRetries: int
     parallelWorkers: int
+    libraryPaths: list[str]
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -121,6 +122,7 @@ class ConfigUpdateRequest(BaseModel):
     maxSleep: Optional[int] = Field(None, ge=0, le=3600, description="Max sleep time (seconds)")
     maxRetries: Optional[int] = Field(None, ge=0, le=100, description="Max retries per image")
     parallelWorkers: Optional[int] = Field(None, ge=1, le=200, description="Parallel download workers")
+    libraryPaths: Optional[list[str]] = Field(None, description="Additional library directories to scan")
 
     @field_validator("outputDir")
     @classmethod

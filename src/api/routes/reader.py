@@ -7,7 +7,6 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import Response
 
 from src.api.services.library_scanner import get_archive_pages, read_page_by_index, get_cover_path, read_cover_bytes
-from src.api.routes import get_output_dir
 
 router = APIRouter(tags=["reader"])
 
@@ -15,16 +14,18 @@ router = APIRouter(tags=["reader"])
 @router.get("/reader/{series_dir}/{archive}/pages")
 async def list_pages(request: Request, series_dir: str, archive: str):
     """List page filenames in an archive."""
-    output_dir = get_output_dir(request)
-    pages = await asyncio.to_thread(get_archive_pages, output_dir, series_dir, archive)
+    cache = request.app.state.library_cache
+    root_dir, entry = cache.resolve_path(series_dir)
+    pages = await asyncio.to_thread(get_archive_pages, root_dir, entry, archive)
     return {"pages": pages, "totalPages": len(pages)}
 
 
 @router.get("/reader/{series_dir}/{archive}/page/{page_index}")
 async def get_page(request: Request, series_dir: str, archive: str, page_index: int):
     """Serve a page image from an archive by index (0-based)."""
-    output_dir = get_output_dir(request)
-    pages, data = await asyncio.to_thread(read_page_by_index, output_dir, series_dir, archive, page_index)
+    cache = request.app.state.library_cache
+    root_dir, entry = cache.resolve_path(series_dir)
+    pages, data = await asyncio.to_thread(read_page_by_index, root_dir, entry, archive, page_index)
 
     if data is None:
         raise HTTPException(status_code=404, detail="Page not found")
@@ -37,8 +38,9 @@ async def get_page(request: Request, series_dir: str, archive: str, page_index: 
 @router.get("/reader/{series_dir}/cover")
 async def get_cover(request: Request, series_dir: str):
     """Serve the cover image for a series."""
-    output_dir = get_output_dir(request)
-    cover_path = await asyncio.to_thread(get_cover_path, output_dir, series_dir)
+    cache = request.app.state.library_cache
+    root_dir, entry = cache.resolve_path(series_dir)
+    cover_path = await asyncio.to_thread(get_cover_path, root_dir, entry)
 
     if not cover_path or not os.path.exists(cover_path):
         raise HTTPException(status_code=404, detail="Cover not found")

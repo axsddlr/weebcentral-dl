@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     log_collector = LogCollector(ws_managers=ws_managers)
     log_collector.install()
 
-    library_cache = LibraryCache(config.output_dir)
+    library_cache = LibraryCache(config.output_dir, config.library_paths)
     queue_manager = QueueManager(downloader, config, log_collector, library_cache, ws_managers)
 
     app.state.config = config

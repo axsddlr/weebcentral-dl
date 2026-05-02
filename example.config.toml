@@ -75,6 +75,12 @@ max_retries = 5
 # Default: ./manga_downloads
 output_dir = "./manga_downloads"
 
+# Additional directories to scan for manga in the Library
+# Useful for importing existing collections (Kavita, Komga folders, etc.)
+# Format: ["path/to/manga", "another/path"]
+# Default: [] (only output_dir is scanned)
+library_paths = []
+
 # Number of parallel image download workers
 # Higher values = faster downloads but more server load
 # 99 is empirically optimal for WeebCentral's CDN

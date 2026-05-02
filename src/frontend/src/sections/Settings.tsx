@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Loader2 } from 'lucide-react';
+import { Save, RotateCcw, Loader2, Plus, X, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ export function Settings() {
   const [hasChanges, setHasChanges] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [newLibraryPath, setNewLibraryPath] = useState('');
 
   useEffect(() => {
     api.getConfig().then(c => {
@@ -48,7 +49,20 @@ export function Settings() {
     }
   };
 
-  const handleReset = async () => {
+  const handleAddPath = () => {
+    if (!newLibraryPath.trim() || !config) return;
+    const paths = [...(config.libraryPaths || []), newLibraryPath.trim()];
+    setConfig({ ...config, libraryPaths: paths });
+    setNewLibraryPath('');
+    setHasChanges(true);
+  };
+
+  const handleRemovePath = (index: number) => {
+    if (!config) return;
+    const paths = config.libraryPaths.filter((_, i) => i !== index);
+    setConfig({ ...config, libraryPaths: paths });
+    setHasChanges(true);
+  };
     try {
       const defaults = await api.resetConfig();
       setConfig(defaults);
@@ -110,6 +124,44 @@ export function Settings() {
                 />
                 <p className="text-xs text-muted-foreground">Directory where all downloaded manga will be saved</p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Library Paths</CardTitle>
+              <CardDescription>Additional folders to scan for manga in the Library reader</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(config.libraryPaths || []).length > 0 ? (
+                <div className="space-y-2">
+                  {config.libraryPaths.map((path, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-muted rounded-md px-3 py-2">
+                      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm truncate flex-1">{path}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemovePath(i)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No additional library folders configured.</p>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="D:/manga/collection"
+                  value={newLibraryPath}
+                  onChange={(e) => setNewLibraryPath(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddPath()}
+                />
+                <Button variant="outline" size="icon" onClick={handleAddPath}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Point to existing manga folders (CBZ/ZIP archives in subdirectories). The download folder is always included.
+              </p>
             </CardContent>
           </Card>
 

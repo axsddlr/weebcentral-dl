@@ -27,7 +27,7 @@ async def get_stats(request: Request):
     qm = request.app.state.queue_manager
     cache = request.app.state.library_cache
 
-    cache.set_output_dir(get_output_dir(request))
+    cache.set_output_dir(get_output_dir(request), config.library_paths)
 
     library, storage_bytes = await asyncio.gather(
         cache.get_library(),

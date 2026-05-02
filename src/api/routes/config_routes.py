@@ -19,6 +19,7 @@ def config_to_response(config: DownloaderConfig) -> dict:
         "maxSleep": config.max_sleep,
         "maxRetries": config.max_retries,
         "parallelWorkers": config.parallel_workers,
+        "libraryPaths": config.library_paths,
     }
 
 
@@ -54,6 +55,8 @@ async def update_config(request: Request, body: ConfigUpdateRequest):
         config.max_retries = body.maxRetries
     if body.parallelWorkers is not None:
         config.parallel_workers = body.parallelWorkers
+    if body.libraryPaths is not None:
+        config.library_paths = body.libraryPaths
 
     save_config(config, request.app.state.config_path)
     return config_to_response(config)

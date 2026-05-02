@@ -21,12 +21,23 @@ def _read_page_safe(zf: zipfile.ZipFile, page_name: str) -> Optional[bytes]:
         return None
 
 
-def scan_library(output_dir: str) -> list[dict]:
-    """Scan the output directory for downloaded manga series.
+def scan_library(dirs: list[str]) -> list[dict]:
+    """Scan one or more directories for manga series.
+
+    Args:
+        dirs: List of directory paths to scan.
 
     Returns:
         List of series dicts with title, chapter count, cover URL, and path.
+        The 'path' field includes a 'root/' prefix for non-default directories.
     """
+    series_list = []
+    for directory in dirs:
+        series_list.extend(_scan_single_dir(directory))
+    return series_list
+
+
+def _scan_single_dir(output_dir: str) -> list[dict]:
     if not os.path.exists(output_dir):
         return []
 
@@ -36,24 +47,62 @@ def scan_library(output_dir: str) -> list[dict]:
         if not os.path.isdir(series_path):
             continue
 
-        # Count archives (.cbz and .zip)
         archives = [
             f for f in os.listdir(series_path)
             if f.lower().endswith(('.cbz', '.zip'))
         ]
+        if not archives:
+            continue
 
-        # Find cover image (26-char basename = WeebCentral series ID)
         cover_file = _find_cover(series_path)
+        display_path = _make_display_path(output_dir, entry)
 
         series_list.append({
-            "id": entry,
+            "id": display_path,
             "title": entry.replace("-", " "),
-            "coverUrl": f"/api/reader/{entry}/cover" if cover_file else None,
+            "coverUrl": f"/api/reader/{display_path}/cover" if cover_file else None,
             "totalChapters": len(archives),
-            "path": entry,
+            "path": display_path,
         })
 
     return series_list
+
+
+def _make_display_path(root: str, entry: str) -> str:
+    """Create a display path that distinguishes non-default roots.
+
+    The default output dir uses just the entry name.
+    Additional library paths get a root hash prefix for uniqueness.
+    """
+    default = os.path.abspath("./manga_downloads")
+    root_abs = os.path.abspath(root)
+    if root_abs == default:
+        return entry
+    root_hash = str(abs(hash(root_abs)))[:6]
+    return f"{root_hash}/{entry}"
+
+
+def _resolve_display_path(all_dirs: list[str], display_path: str) -> tuple[str, str]:
+    """Convert a display path back to (root_dir, series_dir).
+
+    Examples:
+        "Solo-Leveling" → ("./manga_downloads", "Solo-Leveling")
+        "12345/Solo-Leveling" → ("/extra/lib", "Solo-Leveling")
+    """
+    parts = display_path.split("/", 1)
+    if len(parts) == 2:
+        prefix, entry = parts
+        for d in all_dirs:
+            if str(abs(hash(os.path.abspath(d))))[:6] == prefix:
+                return d, entry
+    # Fallback: search all dirs for the entry
+    entry = display_path
+    for d in all_dirs:
+        candidate = os.path.join(d, entry)
+        if os.path.isdir(candidate):
+            return d, entry
+    # Last resort: use default dir
+    return all_dirs[0] if all_dirs else "./manga_downloads", entry
 
 
 def scan_chapters(output_dir: str, series_dir: str) -> list[dict]:
@@ -186,8 +235,18 @@ def get_cover_path(output_dir: str, series_dir: str) -> Optional[str]:
 
 
 def _find_cover(series_path: str) -> Optional[str]:
-    """Find cover image: file with 26-char base name (WeebCentral ID pattern)."""
-    return find_cover_in_dir(series_path)
+    """Find cover image: prefer WeebCentral 26-char ID, fall back to any JPG/WEBP."""
+    if not os.path.exists(series_path):
+        return None
+    # Primary: WeebCentral cover (26-char ID filename)
+    result = find_cover_in_dir(series_path)
+    if result:
+        return result
+    # Fallback: any JPG/WEBP (for non-WeebCentral collections)
+    for f in sorted(os.listdir(series_path)):
+        if f.lower().endswith(('.jpg', '.jpeg', '.webp', '.png')):
+            return os.path.join(series_path, f)
+    return None
 
 
 def _extract_chapter_number(filename: str, series_dir: str) -> str:
