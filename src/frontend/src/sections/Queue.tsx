@@ -5,9 +5,6 @@ import {
   RotateCcw,
   Trash2,
   Download,
-  CheckCircle,
-  AlertCircle,
-  Clock,
   MoreHorizontal
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { StatusIcon, StatusBadge } from '@/components/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu,
@@ -72,38 +70,6 @@ export function Queue() {
       }
     },
   });
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'downloading':
-        return <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'pending':
-        return <Clock className="h-4 w-4 text-muted-foreground" />;
-      case 'paused':
-        return <Pause className="h-4 w-4 text-yellow-500" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      downloading: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-      completed: 'bg-green-500/10 text-green-500 border-green-500/20',
-      failed: 'bg-red-500/10 text-red-500 border-red-500/20',
-      pending: 'bg-muted text-muted-foreground',
-      paused: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    };
-    return (
-      <Badge variant="outline" className={variants[status] || variants.pending}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
 
   const handleToggleQueue = async () => {
     try {
@@ -178,14 +144,14 @@ export function Queue() {
         <Card key={task.id} className="p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
-              {getStatusIcon(task.status)}
+              <StatusIcon status={task.status} />
               <div>
                 <p className="font-medium">{task.mangaTitle}</p>
                 <p className="text-sm text-muted-foreground">Chapter {task.chapterNumber}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusBadge(task.status)}
+              <StatusBadge status={task.status} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">

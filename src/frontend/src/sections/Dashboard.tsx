@@ -3,16 +3,13 @@ import {
   Download,
   BookOpen,
   HardDrive,
-  Clock,
-  CheckCircle,
-  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import * as api from '@/services/api';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { StatusIcon, StatusBadge } from '@/components/StatusBadge';
 
 export function Dashboard() {
   const [stats, setStats] = useState<api.DashboardStats | null>(null);
@@ -54,36 +51,6 @@ export function Dashboard() {
       }
     },
   });
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'downloading':
-        return <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'pending':
-        return <Clock className="h-4 w-4 text-muted-foreground" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      downloading: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-      completed: 'bg-green-500/10 text-green-500 border-green-500/20',
-      failed: 'bg-red-500/10 text-red-500 border-red-500/20',
-      pending: 'bg-muted text-muted-foreground',
-      paused: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    };
-    return (
-      <Badge variant="outline" className={variants[status] || variants.pending}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
 
   const activeTasks = queue?.tasks.filter(t => ['downloading', 'pending'].includes(t.status)) || [];
   const completedTasks = queue?.tasks.filter(t => t.status === 'completed').slice(0, 5) || [];
@@ -157,11 +124,11 @@ export function Dashboard() {
                 <div key={task.id} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(task.status)}
+                      <StatusIcon status={task.status} />
                       <span className="font-medium">{task.mangaTitle}</span>
                       <span className="text-muted-foreground">Ch. {task.chapterNumber}</span>
                     </div>
-                    {getStatusBadge(task.status)}
+                    <StatusBadge status={task.status} />
                   </div>
                   {task.status === 'downloading' && (
                     <div className="space-y-1">
