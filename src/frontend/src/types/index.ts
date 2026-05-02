@@ -21,4 +21,4 @@ export interface ReaderSettings {
   preloadPages: number;
 }
 
-export type View = 'dashboard' | 'search' | 'queue' | 'library' | 'reader' | 'settings' | 'logs';
+export type View = 'dashboard' | 'search' | 'queue' | 'library' | 'reader' | 'settings' | 'logs' | 'tracked';

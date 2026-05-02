@@ -6,6 +6,7 @@ import {
   Settings,
   FileText,
   BookOpen,
+  Bookmark,
   Sun,
   Moon
 } from 'lucide-react';
@@ -24,6 +25,7 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', view: 'dashboard' as View, icon: LayoutDashboard },
   { name: 'Search Manga', view: 'search' as View, icon: Search },
+  { name: 'Tracked', view: 'tracked' as View, icon: Bookmark },
   { name: 'Download Queue', view: 'queue' as View, icon: Download },
   { name: 'Library', view: 'library' as View, icon: Library },
   { name: 'Settings', view: 'settings' as View, icon: Settings },

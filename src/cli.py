@@ -8,6 +8,7 @@ from loguru import logger
 
 from src.downloader import WeebCentralDownloader
 from src.config import load_config
+from src.database import get_all_tracked, add_tracked, remove_tracked, import_from_file, update_last_checked
 
 
 SERIES_ID_PATTERN = re.compile(r'^[A-Z0-9]{26}$')
@@ -136,6 +137,35 @@ def main():
         default="config.toml",
         help="Path to config file (default: config.toml)",
     )
+    parser.add_argument(
+        "--tracked",
+        action="store_true",
+        help="Download latest chapters for all tracked manga in the database",
+    )
+    parser.add_argument(
+        "--track-add",
+        type=str,
+        nargs=2,
+        metavar=("SERIES_ID", "TITLE"),
+        help="Add a series to tracked manga DB (e.g. --track-add ID 'Title')",
+    )
+    parser.add_argument(
+        "--track-remove",
+        type=str,
+        metavar="SERIES_ID",
+        help="Remove a series from tracked manga DB",
+    )
+    parser.add_argument(
+        "--track-list",
+        action="store_true",
+        help="List all tracked manga in the database",
+    )
+    parser.add_argument(
+        "--track-import",
+        type=str,
+        metavar="FILE",
+        help="Import tracked manga from a manga.txt file",
+    )
     args = parser.parse_args()
 
     # Build CLI overrides dict (only include non-None values)
@@ -171,6 +201,41 @@ def main():
     # Create downloader with config
     downloader = WeebCentralDownloader(config)
     chapters_to_download = parse_chapter_arg(config.chapters)
+
+    # --- Tracked manga DB commands ---
+    if args.track_add:
+        sid, title = args.track_add
+        if add_tracked(sid, title):
+            logger.info(f"Added '{title}' ({sid}) to tracked manga")
+        else:
+            logger.error(f"Failed to add {sid}")
+        sys.exit(0)
+
+    if args.track_remove:
+        if remove_tracked(args.track_remove):
+            logger.info(f"Removed {args.track_remove} from tracked manga")
+        else:
+            logger.warning(f"Series {args.track_remove} not found in tracked manga")
+        sys.exit(0)
+
+    if args.track_list:
+        series = get_all_tracked()
+        if series:
+            for s in series:
+                logger.info(f"  {s['series_id']}  {s['title']}")
+            logger.info(f"Total: {len(series)} tracked")
+        else:
+            logger.info("No tracked manga.")
+        sys.exit(0)
+
+    if args.track_import:
+        added, skipped = import_from_file(args.track_import)
+        logger.info(f"Imported {added} entries from {args.track_import} ({skipped} skipped)")
+        sys.exit(0)
+
+    if args.tracked:
+        process_tracked_mode(downloader, chapters_to_download)
+        sys.exit(0)
 
     # Process based on mode
     if config.bulk_file:
@@ -247,6 +312,24 @@ def process_bulk_mode(downloader: WeebCentralDownloader, bulk_file: str, chapter
             downloader.process_manga(series_id=series_id, chapters_to_download=chapters_to_download)
         elif title:
             downloader.process_manga(title=title, chapters_to_download=chapters_to_download)
+
+
+def process_tracked_mode(downloader: WeebCentralDownloader, chapters_to_download: Optional[Set[str]]):
+    """Download all tracked manga from the database."""
+    series = get_all_tracked()
+    if not series:
+        logger.info("No tracked manga in database. Use --track-add to add series.")
+        return
+
+    logger.info(f"Processing {len(series)} tracked manga...")
+    for s in series:
+        logger.info(f"Tracked: {s['title']} ({s['series_id']})")
+        downloader.process_manga(
+            title=s["title"],
+            series_id=s["series_id"],
+            chapters_to_download=chapters_to_download,
+        )
+        update_last_checked(s["series_id"])
 
 
 if __name__ == "__main__":

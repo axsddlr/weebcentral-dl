@@ -7,6 +7,7 @@ import { Library } from '@/sections/Library';
 import { Reader } from '@/sections/Reader';
 import { Settings } from '@/sections/Settings';
 import { Logs } from '@/sections/Logs';
+import { Tracked } from '@/sections/Tracked';
 import type { View, LibraryManga, LibraryChapter } from '@/types';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/hooks/useTheme';
@@ -41,6 +42,8 @@ function App() {
         return <Settings />;
       case 'logs':
         return <Logs />;
+      case 'tracked':
+        return <Tracked />;
       default:
         return <Dashboard />;
     }

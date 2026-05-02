@@ -83,6 +83,46 @@ class MangaListWatcher(FileSystemEventHandler):
 
         return cmd
 
+    def build_tracked_command(self) -> list:
+        """Build python command for tracked DB mode (--tracked)."""
+        cmd = [sys.executable, "-m", "src.cli", "--tracked"]
+        config = self.config_loader.get_downloader_config()
+        if config.latest:
+            cmd.append('-l')
+        if config.sequence:
+            cmd.append('-s')
+        if config.zip:
+            cmd.append('-z')
+        if config.verbose:
+            cmd.append('-v')
+        if config.use_english_title:
+            cmd.append('--en')
+        if config.rlc != 10:
+            cmd.extend(['--rlc', str(config.rlc)])
+        if config.max_sleep != 120:
+            cmd.extend(['--max-sleep', str(config.max_sleep)])
+        if config.max_retries != 5:
+            cmd.extend(['--max-retries', str(config.max_retries)])
+        if config.parallel_workers != 99:
+            cmd.extend(['--parallel-workers', str(config.parallel_workers)])
+        if config.output_dir != "./manga_downloads":
+            cmd.extend(['-o', config.output_dir])
+        return cmd
+
+    def process_tracked(self):
+        """Download latest for all tracked manga from DB."""
+        cmd = self.build_tracked_command()
+        print(f"[DOWNLOAD] Running: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(cmd, timeout=3600, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"[ERROR] Download process exited with code {result.returncode}")
+                if result.stderr:
+                    print(f"[ERROR stderr] {result.stderr[:500]}")
+        except subprocess.TimeoutExpired:
+            print("[ERROR] Download process timed out after 1 hour")
+        print(f"[DONE] Finished processing. Watching for changes...")
+
     def process_file(self):
         """Process manga list file with current config"""
         cmd = self.build_command()
@@ -101,40 +141,33 @@ class MangaListWatcher(FileSystemEventHandler):
 def run_watcher():
     """Main watcher loop for Docker mode"""
     cwd = os.getcwd()
+    use_tracked = os.getenv("WATCH_TRACKED", "").lower() in ("1", "true", "yes")
     manga_file = Path(os.getenv("MANGA_LIST", "manga_list.txt"))
     config_file = Path(os.getenv("CONFIG_FILE", "config.toml"))
 
-    for env_name, file_path in [("MANGA_LIST", manga_file), ("CONFIG_FILE", config_file)]:
+    for env_name, file_path in [("CONFIG_FILE", config_file)]:
         if not file_path.is_absolute():
             try:
                 resolve_safe_path(cwd, str(file_path))
             except ValueError:
                 print(f"[ERROR] {env_name} path '{file_path}' escapes working directory!")
                 exit(1)
-        else:
-            print(f"[WARNING] {env_name} is an absolute path '{file_path}'; ensure it is trusted.")
 
-    if not manga_file.exists():
-        print(f"[ERROR] {manga_file} not found!")
-        exit(1)
-
-    # Setup config watcher
     config_watcher = ConfigWatcher(config_file)
-
-    # Setup manga list watcher
     manga_watcher = MangaListWatcher(manga_file, config_watcher.config_loader)
 
-    # Initial processing
-    print(f"[STARTUP] Processing initial list from {manga_file}")
-    manga_watcher.process_file()
+    if use_tracked:
+        print(f"[STARTUP] Tracked DB mode — processing all tracked manga")
+        manga_watcher.process_tracked()
+    else:
+        if not os.getenv("MANGA_LIST") and not manga_file.exists():
+            print(f"[ERROR] {manga_file} not found! Set MANGA_LIST env or create the file.")
+            exit(1)
+        print(f"[STARTUP] Processing initial list from {manga_file}")
+        manga_watcher.process_file()
 
-    # Watch for changes
     observer = Observer()
-
-    # Watch manga list file
     observer.schedule(manga_watcher, str(manga_file.parent), recursive=False)
-
-    # Watch config file if it exists
     if config_file.exists():
         observer.schedule(config_watcher, str(config_file.parent), recursive=False)
 

@@ -260,3 +260,31 @@ export async function getLogs(): Promise<LogEntry[]> {
 export async function clearLogs(): Promise<void> {
   await request('/api/logs', { method: 'DELETE' });
 }
+
+// --- Tracked ---
+
+export interface TrackedManga {
+  series_id: string;
+  title: string;
+  added_at: string;
+  last_checked_at: string | null;
+}
+
+export async function getTracked(): Promise<{ series: TrackedManga[]; total: number }> {
+  return request('/api/tracked');
+}
+
+export async function addTracked(seriesId: string, title: string): Promise<void> {
+  await request('/api/tracked', {
+    method: 'POST',
+    body: JSON.stringify({ seriesId, title }),
+  });
+}
+
+export async function removeTracked(seriesId: string): Promise<void> {
+  await request(`/api/tracked/${encodeURIComponent(seriesId)}`, { method: 'DELETE' });
+}
+
+export async function importTracked(): Promise<{ added: number; skipped: number }> {
+  return request('/api/tracked/import', { method: 'POST' });
+}
