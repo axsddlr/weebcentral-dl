@@ -1,9 +1,8 @@
 """Dashboard statistics routes"""
+import asyncio
 import os
 
 from fastapi import APIRouter, Request
-
-from src.api.services.library_scanner import scan_library
 
 router = APIRouter(tags=["stats"])
 
@@ -20,35 +19,23 @@ def _format_size(total_bytes: int) -> str:
         return f"{total_bytes / (1024 ** 3):.1f} GB"
 
 
-def _get_dir_size(path: str) -> int:
-    """Calculate total size of a directory recursively."""
-    total = 0
-    if not os.path.exists(path):
-        return 0
-    for dirpath, _, filenames in os.walk(path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            try:
-                total += os.path.getsize(fp)
-            except OSError:
-                pass
-    return total
-
-
 @router.get("/stats")
 async def get_stats(request: Request):
     """Get dashboard statistics."""
     config = request.app.state.config
-    output_dir = os.path.abspath(config.output_dir)
     qm = request.app.state.queue_manager
+    cache = request.app.state.library_cache
 
-    # Library stats
-    library = scan_library(output_dir)
+    cache.set_output_dir(os.path.abspath(config.output_dir))
+
+    library, storage_bytes = await asyncio.gather(
+        cache.get_library(),
+        cache.get_dir_size(),
+    )
+
     total_series = len(library)
     total_chapters = sum(s["totalChapters"] for s in library)
-    storage_bytes = _get_dir_size(output_dir)
 
-    # Queue stats
     queue_state = qm.get_queue_state()
 
     return {

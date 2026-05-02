@@ -8,6 +8,7 @@ from loguru import logger
 
 from src.config import DownloaderConfig
 from src.downloader import WeebCentralDownloader
+from src.api.services.library_cache import LibraryCache
 from src.api.services.log_collector import LogCollector
 
 
@@ -45,10 +46,11 @@ class DownloadTask:
 
 
 class QueueManager:
-    def __init__(self, downloader: WeebCentralDownloader, config: DownloaderConfig, log_collector: LogCollector):
+    def __init__(self, downloader: WeebCentralDownloader, config: DownloaderConfig, log_collector: LogCollector, library_cache: LibraryCache):
         self.downloader = downloader
         self.config = config
         self.log_collector = log_collector
+        self.library_cache = library_cache
         self.tasks: list[DownloadTask] = []
         self.is_running = True
         self._worker_task: Optional[asyncio.Task] = None
@@ -234,6 +236,7 @@ class QueueManager:
             logger.error(f"Failed: {task.manga_title} Ch.{task.chapter_number}: {e}")
 
         task.updated_at = datetime.now()
+        self.library_cache.invalidate_all()
         await self._broadcast_queue_update()
         await self._broadcast_progress(task)
 

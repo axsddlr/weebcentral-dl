@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from src.api.routes import api_router
 from src.api.ws import ws_router
 from src.api.services.queue_manager import QueueManager
+from src.api.services.library_cache import LibraryCache
 from src.api.services.log_collector import LogCollector
 from src.config import DownloaderConfig, load_config
 from src.downloader import WeebCentralDownloader
@@ -43,10 +44,12 @@ async def lifespan(app: FastAPI):
     log_collector = LogCollector()
     log_collector.install()
 
-    queue_manager = QueueManager(downloader, config, log_collector)
+    library_cache = LibraryCache(config.output_dir)
+    queue_manager = QueueManager(downloader, config, log_collector, library_cache)
 
     app.state.downloader = downloader
     app.state.config = config
+    app.state.library_cache = library_cache
     app.state.queue_manager = queue_manager
     app.state.log_collector = log_collector
 

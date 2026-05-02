@@ -4,7 +4,6 @@ import shutil
 
 from fastapi import APIRouter, Request, HTTPException
 
-from src.api.services.library_scanner import scan_library, scan_chapters
 from src.utils import resolve_safe_path
 
 router = APIRouter(tags=["library"])
@@ -13,16 +12,16 @@ router = APIRouter(tags=["library"])
 @router.get("/library")
 async def list_library(request: Request):
     """List all downloaded manga series."""
-    output_dir = request.app.state.config.output_dir
-    output_dir = os.path.abspath(output_dir)
-    return {"series": scan_library(output_dir)}
+    cache = request.app.state.library_cache
+    return {"series": await cache.get_library()}
 
 
 @router.get("/library/{series_dir}/chapters")
 async def list_chapters(request: Request, series_dir: str):
     """List chapters in a series."""
     output_dir = os.path.abspath(request.app.state.config.output_dir)
-    chapters = scan_chapters(output_dir, series_dir)
+    cache = request.app.state.library_cache
+    chapters = await cache.get_chapters(series_dir)
     if not chapters and not os.path.exists(os.path.join(output_dir, series_dir)):
         raise HTTPException(status_code=404, detail="Series not found")
     return {"chapters": chapters}
@@ -41,4 +40,5 @@ async def delete_series(request: Request, series_dir: str):
         raise HTTPException(status_code=404, detail="Series not found")
 
     shutil.rmtree(series_path)
+    request.app.state.library_cache.invalidate_all()
     return {"deleted": True}
