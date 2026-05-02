@@ -35,10 +35,9 @@ class Archiver:
     @staticmethod
     def _collect_images(chapter_dir: str) -> list:
         image_files = []
-        for root, _, files in os.walk(chapter_dir):
-            for file in sorted(files):
-                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
-                    image_files.append(os.path.join(root, file))
+        for f in sorted(os.listdir(chapter_dir)):
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                image_files.append(os.path.join(chapter_dir, f))
         return image_files
 
     def _write_archive_with_cover(self, zf: zipfile.ZipFile, image_files: list, series_title: str):
