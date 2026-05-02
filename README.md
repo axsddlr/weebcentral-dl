@@ -53,11 +53,29 @@ docker-compose up -d              # API + UI on :8000
 docker-compose --profile watcher up -d  # + auto-download watcher
 ```
 
+To read existing manga collections from other host folders, mount them as volumes in `docker-compose.yml`:
+
+```yaml
+services:
+  manga-downloader:
+    volumes:
+      - ./manga_downloads:/app/manga_downloads
+      - /path/to/kavita/manga:/app/external/manga:ro    # add this
+```
+
+Then add the **container path** to `library_paths` in `config.toml`:
+
+```toml
+library_paths = ["/app/external/manga"]
+```
+
+The folder structure should be `<manga_series>/<vol_001.cbz or chapter.cbz>`. The Library page merges all paths into one view. Use `:ro` (read-only) for collections you don't want the downloader to modify.
+
 ## Library Reader
 
-The Library page scans your output directory and any additional folders configured in Settings. Supports `.cbz`/`.zip` archives. Reading modes: long-strip, single page, double page. Keyboard navigation, zoom, fit modes, light/dark theme.
+The Library page scans your output directory and any additional folders configured in `library_paths`. Supports `.cbz`/`.zip` archives. Reading modes: long-strip, single page, double page. Keyboard navigation, zoom, fit modes, light/dark theme.
 
-To add existing manga collections, set `library_paths` in `config.toml` or use Settings > Library Paths in the UI.
+Add external collections via Settings > Library Paths (use **container paths** in Docker, **host paths** when running locally).
 
 ## Configuration
 
