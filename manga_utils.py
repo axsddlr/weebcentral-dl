@@ -27,6 +27,11 @@ except ImportError:
     find_cover_in_dir = None
 
 try:
+    from src.downloader.http_client import HttpClient
+except ImportError:
+    HttpClient = None
+
+try:
     import cloudscraper
 except ImportError:
     cloudscraper = None
@@ -48,58 +53,70 @@ def find_series_id(folder_path):
 def get_english_title(series_id):
     """Fetch English title from WeebCentral series page.
 
-    Tries in order:
-    1. <h1> tag if it looks English (no romaji particles)
-    2. Associated Name(s) if H1 is romaji
-    3. Falls back to H1 title if no Associated Names exist
+    Uses the downloader's HttpClient (with retries and timeouts) when available,
+    falling back to raw cloudscraper for standalone usage.
     """
+    url = f"https://weebcentral.com/series/{series_id}"
+
+    if HttpClient:
+        return _fetch_english_title_http(series_id, url)
+    return _fetch_english_title_legacy(series_id, url)
+
+
+def _fetch_english_title_http(series_id: str, url: str) -> str | None:
+    try:
+        http = HttpClient("./manga_downloads")
+        resp = http.request("GET", url)
+        return _parse_english_title(resp.text)
+    except Exception as e:
+        logger.warning(f"Could not fetch English title for {series_id}: {e}")
+    return None
+
+
+def _fetch_english_title_legacy(series_id: str, url: str) -> str | None:
     if not cloudscraper:
         logger.warning("cloudscraper not installed, cannot fetch English titles")
         return None
-
     try:
         scraper = cloudscraper.create_scraper()
         scraper.headers.update({
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
         })
-
-        url = f"https://weebcentral.com/series/{series_id}"
         resp = scraper.get(url, timeout=10)
-
-        # Extract H1 title
-        h1_match = re.search(r'<h1[^>]*>([^<]+)</h1>', resp.text)
-        if not h1_match:
-            return None
-
-        h1_title = html.unescape(h1_match.group(1).strip())
-
-        # Check if title looks like romaji (has Japanese particles)
-        has_romaji = re.search(r'\b(de|wo|ga|no|ni|wa)\b', h1_title, re.IGNORECASE)
-
-        if has_romaji:
-            # Try to get Associated Name(s) for English title
-            assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
-            assoc_match = re.search(assoc_pattern, resp.text, re.DOTALL | re.IGNORECASE)
-
-            if assoc_match:
-                ul_content = assoc_match.group(1)
-                li_items = re.findall(r'<li>([^<]+)</li>', ul_content)
-                if li_items:
-                    # Use first associated name (usually English)
-                    title = html.unescape(li_items[0].strip())
-                    title = re.sub(r'[<>:"/\\|?*]', '', title)
-                    title = title.replace(' ', '-')
-                    return title
-
-        # Either H1 is English, or no Associated Names found - use H1
-        title = re.sub(r'[<>:"/\\|?*]', '', h1_title)
-        title = title.replace(' ', '-')
-        return title
-
+        return _parse_english_title(resp.text)
     except Exception as e:
         logger.warning(f"Could not fetch English title for {series_id}: {e}")
-
     return None
+
+
+def _parse_english_title(text: str) -> str | None:
+    """Extract English title from series page HTML.
+
+    Tries in order:
+    1. <h1> tag if it looks English (no romaji particles)
+    2. Associated Name(s) if H1 is romaji
+    3. Falls back to H1 title if no Associated Names exist
+    """
+    h1_match = re.search(r'<h1[^>]*>([^<]+)</h1>', text)
+    if not h1_match:
+        return None
+
+    h1_title = html.unescape(h1_match.group(1).strip())
+
+    has_romaji = re.search(r'\b(de|wo|ga|no|ni|wa)\b', h1_title, re.IGNORECASE)
+
+    if has_romaji:
+        assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
+        assoc_match = re.search(assoc_pattern, text, re.DOTALL | re.IGNORECASE)
+        if assoc_match:
+            li_items = re.findall(r'<li>([^<]+)</li>', assoc_match.group(1))
+            if li_items:
+                title = html.unescape(li_items[0].strip())
+                title = re.sub(r'[<>:"/\\|?*]', '', title)
+                return title.replace(' ', '-')
+
+    title = re.sub(r'[<>:"/\\|?*]', '', h1_title)
+    return title.replace(' ', '-')
 
 
 def get_folder_priority(folder_name, folder_path):
