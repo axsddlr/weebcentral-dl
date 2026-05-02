@@ -1,9 +1,11 @@
 """FastAPI application setup"""
 import os
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -104,6 +106,26 @@ def create_app() -> FastAPI:
         response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         return response
+
+    # Rate limiting middleware (sliding window, in-memory)
+    _rate_buckets: dict[str, list[float]] = defaultdict(list)
+    _rate_limit = 60    # max requests per window
+    _rate_window = 60.0  # window in seconds
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next):
+        if request.url.path.startswith("/api/"):
+            client = request.client.host if request.client else "unknown"
+            now = time.time()
+            bucket = _rate_buckets[client]
+            # Purge expired entries
+            cutoff = now - _rate_window
+            while bucket and bucket[0] < cutoff:
+                bucket.pop(0)
+            if len(bucket) >= _rate_limit:
+                raise HTTPException(status_code=429, detail="Too many requests")
+            bucket.append(now)
+        return await call_next(request)
 
     # Simple auth middleware for state-changing API routes
     @app.middleware("http")
