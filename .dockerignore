@@ -35,6 +35,12 @@ todo.md
 .env.*
 config.toml
 
+# Data
+*.db
+manga.txt
+manga_list.txt
+tasks/
+
 # Misc
 Kimi_Agent_*/
 test*

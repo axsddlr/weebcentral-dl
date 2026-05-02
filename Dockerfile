@@ -16,9 +16,10 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install backend dependencies
+# Install backend dependencies (BuildKit cache mount speeds rebuilds)
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source
 COPY src/ ./src/
@@ -27,11 +28,9 @@ COPY server.py ./
 # Copy built frontend into FastAPI static web directory
 COPY --from=frontend-builder /frontend/dist/ ./src/web/
 
-# Runtime data directory
-RUN mkdir -p manga_downloads
-
-# Run as non-root user
-RUN adduser --disabled-password --gecos "" --uid 1000 appuser \
+# Runtime data directory + non-root user in one layer
+RUN mkdir -p manga_downloads \
+    && adduser --disabled-password --gecos "" --uid 1000 appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
