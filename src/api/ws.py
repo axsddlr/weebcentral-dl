@@ -1,6 +1,4 @@
 """WebSocket handlers for real-time updates"""
-import asyncio
-import json
 from typing import Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect

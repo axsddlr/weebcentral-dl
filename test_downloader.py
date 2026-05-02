@@ -9,7 +9,7 @@ import os
 import tempfile
 import shutil
 import re
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import argparse
 
 # Import modules to test
