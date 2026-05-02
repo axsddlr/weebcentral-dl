@@ -319,7 +319,7 @@ def add_covers_to_archives_command(manga_dir, dry_run=False, verbose=False):
                         # Clean up temp file if something went wrong
                         if os.path.exists(tmp_path):
                             os.remove(tmp_path)
-                        raise e
+                        raise
 
             except PermissionError as e:
                 logger.error(f"  Error processing '{archive_name}': Permission denied (file may be locked or read-only)")
