@@ -67,6 +67,23 @@ max_sleep = 120
 max_retries = 5
 
 # ============================================================================
+# OUTPUT & PARALLELISM OPTIONS
+# ============================================================================
+
+# Directory where downloaded manga will be saved
+# Equivalent to: --output-dir
+# Default: ./manga_downloads
+output_dir = "./manga_downloads"
+
+# Number of parallel image download workers
+# Higher values = faster downloads but more server load
+# 99 is empirically optimal for WeebCentral's CDN
+# Set to 1 for sequential downloads (same as sequence = true)
+# Equivalent to: --parallel-workers
+# Default: 99
+parallel_workers = 99
+
+# ============================================================================
 # EXAMPLE CONFIGURATIONS
 # ============================================================================
 
