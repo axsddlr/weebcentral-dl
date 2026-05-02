@@ -45,6 +45,20 @@ def has_images(folder: str) -> bool:
     return False
 
 
+def find_cover_in_dir(directory: str) -> str | None:
+    """Find a WeebCentral cover image in a directory.
+
+    Cover images are identified by a 26-character basename (series ID).
+    Returns the full path or None.
+    """
+    if not os.path.exists(directory):
+        return None
+    for f in os.listdir(directory):
+        if f.endswith(('.jpg', '.webp')) and len(os.path.splitext(f)[0]) == 26:
+            return os.path.join(directory, f)
+    return None
+
+
 def resolve_safe_path(base_dir: str, *path_parts: str) -> str:
     """
     Safely joins path parts and ensures the result is within the base directory.

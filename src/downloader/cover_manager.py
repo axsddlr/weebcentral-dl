@@ -6,6 +6,7 @@ from PIL import Image
 from loguru import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 from src.downloader.image_downloader import ImageDownloader
+from src.utils import find_cover_in_dir
 
 
 class CoverManager:
@@ -16,12 +17,7 @@ class CoverManager:
 
     def get_cover_image_path(self, series_title: str) -> Optional[str]:
         series_dir = os.path.join(self.output_dir, series_title)
-        if not os.path.exists(series_dir):
-            return None
-        for file in os.listdir(series_dir):
-            if file.endswith(('.jpg', '.webp')) and len(file.split('.')[0]) == 26:
-                return os.path.join(series_dir, file)
-        return None
+        return find_cover_in_dir(series_dir)
 
     def download_and_convert(self, series_id: str, series_title: str):
         cover_path = self.download(series_id, series_title)

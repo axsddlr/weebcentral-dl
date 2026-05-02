@@ -22,6 +22,11 @@ from collections import defaultdict
 from loguru import logger
 
 try:
+    from src.utils import find_cover_in_dir
+except ImportError:
+    find_cover_in_dir = None
+
+try:
     import cloudscraper
 except ImportError:
     cloudscraper = None
@@ -29,9 +34,13 @@ except ImportError:
 
 def find_series_id(folder_path):
     """Extract series ID from cover image filename in the folder."""
+    if find_cover_in_dir:
+        cover_path = find_cover_in_dir(folder_path)
+        if cover_path:
+            return os.path.splitext(os.path.basename(cover_path))[0]
+        return None
     for file in os.listdir(folder_path):
         if file.endswith(('.jpg', '.webp')) and len(file.split('.')[0]) == 26:
-            # Series IDs are 26 characters long (e.g., 01J76XYHEWTDVAMWPMEQS89C3Y)
             return file.split('.')[0]
     return None
 

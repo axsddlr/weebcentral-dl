@@ -5,7 +5,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from src.utils import resolve_safe_path
+from src.utils import resolve_safe_path, find_cover_in_dir
 
 
 def scan_library(output_dir: str) -> list[dict]:
@@ -174,12 +174,7 @@ def get_cover_path(output_dir: str, series_dir: str) -> Optional[str]:
 
 def _find_cover(series_path: str) -> Optional[str]:
     """Find cover image: file with 26-char base name (WeebCentral ID pattern)."""
-    if not os.path.exists(series_path):
-        return None
-    for f in os.listdir(series_path):
-        if f.endswith(('.jpg', '.webp')) and len(f.split('.')[0]) == 26:
-            return os.path.join(series_path, f)
-    return None
+    return find_cover_in_dir(series_path)
 
 
 def _extract_chapter_number(filename: str, series_dir: str) -> str:
