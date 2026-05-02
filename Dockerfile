@@ -1,16 +1,41 @@
-FROM python:3.11-slim
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY src/frontend/package*.json ./
+RUN npm ci
+
+COPY src/frontend/ ./
+RUN npm run build
+
+
+FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install backend dependencies
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy backend source
 COPY src/ ./src/
+COPY server.py ./
 
-# Create downloads directory
+# Copy built frontend into FastAPI static web directory
+COPY --from=frontend-builder /frontend/dist/ ./src/web/
+
+# Runtime data directory
 RUN mkdir -p manga_downloads
 
-# Run watcher for Docker mode
-ENTRYPOINT ["python", "-m", "src.watcher"]
+# Run as non-root user
+RUN adduser --disabled-password --gecos "" --uid 1000 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+# Default container mode: API + UI
+CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "8000"]
