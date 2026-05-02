@@ -1,4 +1,6 @@
 """Download queue routes"""
+import asyncio
+
 from fastapi import APIRouter, Request, HTTPException
 from src.api.models import AddToQueueRequest
 
@@ -17,8 +19,6 @@ async def add_to_queue(request: Request, body: AddToQueueRequest):
     """Add chapters to the download queue."""
     qm = request.app.state.queue_manager
     downloader = request.app.state.downloader
-
-    import asyncio
 
     try:
         chapters_list = await asyncio.to_thread(downloader.fetch_chapter_list, body.seriesId)
