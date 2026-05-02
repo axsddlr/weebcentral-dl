@@ -1,22 +1,50 @@
-version: '3.8'
-
 services:
   manga-downloader:
-    build: .
-    container_name: weebcentral-dl
+    build:
+      context: .
+    image: weebcentral-dl:latest
+    container_name: weebcentral-dl-ui
+    ports:
+      - "8000:8000"
     volumes:
-      # Mount your manga list file (customize left side to your file path)
-      - ./manga_list.txt:/app/manga_list.txt
-
-      # Mount config file for hot reload (all settings from config.toml)
+      # Mount config file so UI config edits persist on host
       - ./config.toml:/app/config.toml
 
       # Persist downloads to host
       - ./manga_downloads:/app/manga_downloads
     environment:
-      # Specify which manga list file to watch (default: manga_list.txt)
-      - MANGA_LIST=manga_list.txt
-
-      # Specify config file to use (default: config.toml)
+      # Config path used by API and queue services
       - CONFIG_FILE=config.toml
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/stats')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  manga-watcher:
+    image: weebcentral-dl:latest
+    container_name: weebcentral-dl-watcher
+    profiles:
+      - watcher
+    command: ["python", "-m", "src.watcher"]
+    volumes:
+      # Mount manga list file for automated watcher mode
+      - ./manga_list.txt:/app/manga_list.txt
+
+      # Mount config file for watcher hot reload
+      - ./config.toml:/app/config.toml
+
+      # Persist downloads to host
+      - ./manga_downloads:/app/manga_downloads
+    environment:
+      - MANGA_LIST=manga_list.txt
+      - CONFIG_FILE=config.toml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
