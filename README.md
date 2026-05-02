@@ -53,12 +53,11 @@ docker-compose up -d              # API + UI on :8000
 docker-compose --profile watcher up -d  # + auto-download watcher
 ```
 
-To read existing manga collections from other host folders, add them to the pre-configured `./library` directory (symlinks work):
+To read existing manga collections from other host folders, drop them into the `./library` directory:
 
 ```bash
 mkdir library
-ln -s /path/to/kavita/manga library/kavita
-ln -s /path/to/other/collection library/other
+cp -r /path/to/kavita/manga library/kavita
 ```
 
 Then add `/app/library` to `library_paths` in `config.toml`:
