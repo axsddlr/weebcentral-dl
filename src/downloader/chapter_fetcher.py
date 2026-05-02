@@ -15,23 +15,18 @@ class ChapterFetcher:
         try:
             resp = self.http.request("GET", url)
         except Exception as e:
-            logger.error(f"Failed to fetch chapter list for {series_id}: {e}")
+            logger.error(
+                f"Network error fetching chapter list for {series_id}: {type(e).__name__}: {e}. "
+                f"All retries exhausted."
+            )
             return []
 
-        try:
-            data = resp.json()
-            chapters = self._parse_json_response(data)
-            if chapters:
-                chapters.sort(key=lambda x: float(x[1]), reverse=True)
-                logger.debug(f"Fetched {len(chapters)} chapters via JSON API")
-                return chapters
-        except (ValueError, KeyError) as e:
-            logger.debug(f"JSON API failed, falling back to HTML parsing: {e}")
-
-        chapters = self._parse_html_response(resp.text)
-        chapters.sort(key=lambda x: float(x[1]), reverse=True)
-        logger.debug(f"Fetched {len(chapters)} chapters via HTML parsing")
+        chapters = self._parse_chapter_data(resp)
+        if not chapters:
+            logger.warning(f"No chapters found for {series_id} (series may have no chapters published)")
         return chapters
+
+    def _parse_chapter_data(self, resp) -> List[Tuple[str, str, str]]:
 
     @staticmethod
     def _parse_json_response(data: dict) -> list:

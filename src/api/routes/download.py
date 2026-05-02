@@ -18,15 +18,18 @@ async def add_to_queue(request: Request, body: AddToQueueRequest):
     qm = request.app.state.queue_manager
     downloader = request.app.state.downloader
 
-    # Fetch chapter list to map IDs to numbers
     import asyncio
-    chapters_list = await asyncio.to_thread(downloader.fetch_chapter_list, body.seriesId)
 
-    # Build chapter lookup: id -> (type, number)
+    try:
+        chapters_list = await asyncio.to_thread(downloader.fetch_chapter_list, body.seriesId)
+        series_title = await asyncio.to_thread(downloader.get_series_title_by_id, body.seriesId)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch series data from WeebCentral: {e}")
+
+    if not chapters_list:
+        raise HTTPException(status_code=404, detail="No chapters found for this series")
+
     chapter_map = {chap_id: (chap_type, chap_num) for chap_type, chap_num, chap_id in chapters_list}
-
-    # Resolve series title
-    series_title = await asyncio.to_thread(downloader.get_series_title_by_id, body.seriesId)
 
     chapters_to_add = []
     for chapter_id in body.chapters:

@@ -19,32 +19,36 @@ class SeriesResolver:
         url = f"{WEEBCENTRAL_URL}/search/data?author=&text={encoded}&sort=Best%20Match&order=Descending&official=Any&anime=Any&adult=Any&display_mode=Full%20Display"
         try:
             resp = self.http.request("GET", url)
-            results = re.findall(r'/series/([^"/]+/[^"]+)', resp.text)
-            if not results:
-                msg = f"NOT FOUND: {query}"
-                logger.warning(msg)
-                self.http.log_not_found(msg)
-                return None, None
-
-            unique_results = sorted(list(set(results)))
-            if not unique_results:
-                msg = f"NO UNIQUE LINKS: {query}"
-                logger.warning(msg)
-                self.http.log_not_found(msg)
-                return None, None
-
-            if len(unique_results) > 1:
-                msg = f"MULTIPLE UNIQUE: {query} => {unique_results}"
-                logger.warning(
-                    f"Multiple unique search results for '{query}', picking the first: {unique_results[0]}"
-                )
-                self.http.log_not_found(msg)
-
-            series_id, series_title = unique_results[0].split("/")
-            return series_id, series_title
         except Exception as e:
-            logger.error(f"Search failed for '{query}': {e}")
+            logger.error(
+                f"Network error searching for '{query}': {type(e).__name__}: {e}. "
+                f"All retries exhausted."
+            )
             return None, None
+
+        results = re.findall(r'/series/([^"/]+/[^"]+)', resp.text)
+        if not results:
+            msg = f"NOT FOUND: {query}"
+            logger.warning(msg)
+            self.http.log_not_found(msg)
+            return None, None
+
+        unique_results = sorted(list(set(results)))
+        if not unique_results:
+            msg = f"NO UNIQUE LINKS: {query}"
+            logger.warning(msg)
+            self.http.log_not_found(msg)
+            return None, None
+
+        if len(unique_results) > 1:
+            msg = f"MULTIPLE UNIQUE: {query} => {unique_results}"
+            logger.warning(
+                f"Multiple unique search results for '{query}', picking the first: {unique_results[0]}"
+            )
+            self.http.log_not_found(msg)
+
+        series_id, series_title = unique_results[0].split("/")
+        return series_id, series_title
 
     def resolve_series_info(
         self, title: Optional[str], series_id: Optional[str]
