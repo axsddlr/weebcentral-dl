@@ -10,6 +10,10 @@ services:
       - ./config.toml:/app/config.toml
       - ./manga_downloads:/app/manga_downloads
       - ./weebcentral.db:/app/weebcentral.db
+      # Library mount: symlink or copy manga folders into ./library on the host.
+      # They appear at /app/library in the container for the Library reader.
+      # Add "/app/library" to library_paths in config.toml or Settings UI.
+      - ./library:/app/library:ro
     environment:
       - CONFIG_FILE=config.toml
     restart: unless-stopped

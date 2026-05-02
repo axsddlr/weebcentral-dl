@@ -160,7 +160,9 @@ export function Settings() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Point to existing manga folders (CBZ/ZIP archives in subdirectories). The download folder is always included.
+                Add folders containing manga series (CBZ/ZIP archives in subdirectories). The download folder is always included.
+                <br />
+                <strong>Docker:</strong> use container paths (e.g. /app/library). Mount host folders as volumes in docker-compose.yml first.
               </p>
             </CardContent>
           </Card>
