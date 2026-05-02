@@ -7,6 +7,19 @@ from typing import Optional
 
 from src.utils import resolve_safe_path, find_cover_in_dir
 
+MAX_PAGE_BYTES = 50 * 1024 * 1024  # 50 MB per page
+
+
+def _read_page_safe(zf: zipfile.ZipFile, page_name: str) -> Optional[bytes]:
+    """Read a page with a size check to prevent zip bomb attacks."""
+    try:
+        info = zf.getinfo(page_name)
+        if info.file_size > MAX_PAGE_BYTES:
+            return None
+        return zf.read(page_name)
+    except KeyError:
+        return None
+
 
 def scan_library(output_dir: str) -> list[dict]:
     """Scan the output directory for downloaded manga series.
@@ -120,7 +133,7 @@ def read_page_from_archive(output_dir: str, series_dir: str, archive: str, page_
 
     try:
         with zipfile.ZipFile(archive_path, 'r') as zf:
-            return zf.read(page_name)
+            return _read_page_safe(zf, page_name)
     except (zipfile.BadZipFile, KeyError):
         return None
 
@@ -148,7 +161,7 @@ def read_page_by_index(output_dir: str, series_dir: str, archive: str, page_inde
             ]
             pages.sort()
             if 0 <= page_index < len(pages):
-                return pages, zf.read(pages[page_index])
+                return pages, _read_page_safe(zf, pages[page_index])
             return pages, None
     except (zipfile.BadZipFile, KeyError):
         return [], None
