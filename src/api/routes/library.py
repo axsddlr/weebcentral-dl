@@ -6,6 +6,7 @@ import asyncio
 from fastapi import APIRouter, Request, HTTPException
 
 from src.utils import resolve_safe_path
+from src.api.routes import get_output_dir
 
 router = APIRouter(tags=["library"])
 
@@ -20,7 +21,7 @@ async def list_library(request: Request):
 @router.get("/library/{series_dir}/chapters")
 async def list_chapters(request: Request, series_dir: str):
     """List chapters in a series."""
-    output_dir = os.path.abspath(request.app.state.config.output_dir)
+    output_dir = get_output_dir(request)
     cache = request.app.state.library_cache
     chapters = await cache.get_chapters(series_dir)
     if not chapters and not os.path.exists(os.path.join(output_dir, series_dir)):
@@ -31,7 +32,7 @@ async def list_chapters(request: Request, series_dir: str):
 @router.delete("/library/{series_dir}")
 async def delete_series(request: Request, series_dir: str):
     """Delete an entire series directory."""
-    output_dir = os.path.abspath(request.app.state.config.output_dir)
+    output_dir = get_output_dir(request)
     try:
         series_path = resolve_safe_path(output_dir, series_dir)
     except ValueError:
