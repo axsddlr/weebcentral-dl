@@ -1,6 +1,7 @@
 """Library routes: list and manage downloaded manga."""
 import os
 import shutil
+import asyncio
 
 from fastapi import APIRouter, Request, HTTPException
 
@@ -39,6 +40,6 @@ async def delete_series(request: Request, series_dir: str):
     if not os.path.exists(series_path):
         raise HTTPException(status_code=404, detail="Series not found")
 
-    shutil.rmtree(series_path)
+    await asyncio.to_thread(shutil.rmtree, series_path)
     request.app.state.library_cache.invalidate_all()
     return {"deleted": True}

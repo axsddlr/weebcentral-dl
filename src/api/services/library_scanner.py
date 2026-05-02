@@ -125,6 +125,44 @@ def read_page_from_archive(output_dir: str, series_dir: str, archive: str, page_
         return None
 
 
+def read_page_by_index(output_dir: str, series_dir: str, archive: str, page_index: int) -> tuple[list[str], Optional[bytes]]:
+    """List pages and read one page from an archive in a single zip open.
+
+    Returns:
+        Tuple of (sorted page list, page contents at index, or None).
+    """
+    try:
+        archive_path = resolve_safe_path(output_dir, series_dir, archive)
+    except ValueError:
+        return [], None
+
+    if not os.path.exists(archive_path):
+        return [], None
+
+    image_exts = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
+    try:
+        with zipfile.ZipFile(archive_path, 'r') as zf:
+            pages = [
+                name for name in zf.namelist()
+                if name.lower().endswith(image_exts) and not name.startswith('__MACOSX')
+            ]
+            pages.sort()
+            if 0 <= page_index < len(pages):
+                return pages, zf.read(pages[page_index])
+            return pages, None
+    except (zipfile.BadZipFile, KeyError):
+        return [], None
+
+
+def read_cover_bytes(cover_path: str) -> Optional[bytes]:
+    """Read cover image bytes from filesystem."""
+    try:
+        with open(cover_path, "rb") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
 def get_cover_path(output_dir: str, series_dir: str) -> Optional[str]:
     """Find cover image file in series directory."""
     try:
