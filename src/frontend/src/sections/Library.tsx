@@ -85,6 +85,7 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
       const libraryChapter: LibraryChapter = {
         id: chapter.id,
         number: chapter.number,
+        filename: chapter.filename,
         totalPages: chapter.totalPages,
         read: false,
         lastReadPage: 0,
