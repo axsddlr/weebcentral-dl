@@ -21,12 +21,26 @@ class ChapterFetcher:
             )
             return []
 
-        chapters = self._parse_chapter_data(resp)
+        chapters = self._parse_response(resp)
         if not chapters:
             logger.warning(f"No chapters found for {series_id} (series may have no chapters published)")
         return chapters
 
-    def _parse_chapter_data(self, resp) -> List[Tuple[str, str, str]]:
+    def _parse_response(self, resp) -> List[Tuple[str, str, str]]:
+        try:
+            data = resp.json()
+            chapters = self._parse_json_response(data)
+            if chapters:
+                chapters.sort(key=lambda x: _safe_float(x[1]), reverse=True)
+                logger.debug(f"Fetched {len(chapters)} chapters via JSON API")
+                return chapters
+        except (ValueError, KeyError) as e:
+            logger.debug(f"JSON API failed, falling back to HTML parsing: {e}")
+
+        chapters = self._parse_html_response(resp.text)
+        chapters.sort(key=lambda x: _safe_float(x[1]), reverse=True)
+        logger.debug(f"Fetched {len(chapters)} chapters via HTML parsing")
+        return chapters
 
     @staticmethod
     def _parse_json_response(data: dict) -> list:
@@ -52,3 +66,10 @@ class ChapterFetcher:
             (m.group(1).strip(), m.group(2), m.group(3))
             for m in pattern.finditer(html)
         ]
+
+
+def _safe_float(value: str) -> float:
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0

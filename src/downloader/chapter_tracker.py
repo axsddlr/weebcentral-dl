@@ -34,8 +34,10 @@ class ChapterTracker:
         if not os.path.exists(out_dir):
             return False
         base = int(float(chap_num))
-        patt = re.compile(rf"vol_0*{base}(?:-[0-9]+)?\.zip$")
-        for fname in os.listdir(out_dir):
-            if patt.fullmatch(fname):
-                return True
-        return False
+        if "." in str(chap_num):
+            dec = str(chap_num).split(".")[-1]
+            if dec != "0":
+                patt = re.compile(rf"vol_0*{base}-0*{dec}\.zip$")
+                return any(patt.fullmatch(f) for f in os.listdir(out_dir))
+        patt = re.compile(rf"vol_0*{base}\.zip$")
+        return any(patt.fullmatch(f) for f in os.listdir(out_dir))

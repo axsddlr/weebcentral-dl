@@ -18,6 +18,13 @@ from src.downloader.archiver import Archiver
 from src.utils import get_vol_and_chapter_names
 
 
+def _safe_float(value: str) -> float:
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return 0.0
+
+
 class DownloadOrchestrator:
     def __init__(
         self,
@@ -83,7 +90,7 @@ class DownloadOrchestrator:
         chap_counter = 0
         for chap_type, chap_num, chap_id in reversed(chapters):
             chap_num_str = (
-                str(float(chap_num)).rstrip("0").rstrip(".")
+                str(_safe_float(chap_num)).rstrip("0").rstrip(".")
                 if "." in chap_num
                 else chap_num
             )
@@ -134,7 +141,7 @@ class DownloadOrchestrator:
             logger.info("No downloaded chapters found, downloading all chapters.")
             return {chap[1] for chap in chapters}
 
-        new_chapters = {chap[1] for chap in chapters if float(chap[1]) > latest}
+        new_chapters = {chap[1] for chap in chapters if _safe_float(chap[1]) > latest}
         if not new_chapters:
             logger.info(f"No new chapters found after chapter {latest}.")
             return None
