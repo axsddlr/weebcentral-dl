@@ -64,7 +64,7 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
     try {
       const chs = await api.getLibraryChapters(series.path);
       setChapters(chs);
-    } catch (e) {
+    } catch {
       toast.error('Failed to load chapters');
     } finally {
       setLoadingChapters(false);
@@ -102,7 +102,7 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
       await api.deleteSeries(seriesPath);
       toast.success('Series removed from library');
       fetchLibrary();
-    } catch (e) {
+    } catch {
       toast.error('Failed to delete series');
     }
   };

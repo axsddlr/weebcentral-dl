@@ -34,13 +34,24 @@ export function Logs() {
     }
   };
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getLogs();
+        if (!cancelled) setLogs(data);
+      } catch (e) {
+        if (!cancelled) console.error('Failed to fetch logs:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useWebSocket({
     path: '/ws/logs',
     onMessage: (msg) => {
       if (msg.type === 'log') {
-        setLogs(prev => [msg.data, ...prev].slice(0, 500));
+        setLogs(prev => [msg.data as api.LogEntry, ...prev].slice(0, 500));
       }
     },
   });
@@ -87,7 +98,7 @@ export function Logs() {
       await api.clearLogs();
       setLogs([]);
       toast.success('Logs cleared');
-    } catch (e) {
+    } catch {
       toast.error('Failed to clear logs');
     }
   };

@@ -1,19 +1,26 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 
+interface WsMessage {
+  type: string;
+  data: unknown;
+}
+
 interface UseWebSocketOptions {
-  /** WebSocket path, e.g. '/ws/progress' */
   path: string;
-  /** Called for each incoming JSON message */
-  onMessage?: (data: any) => void;
-  /** Auto-reconnect delay in ms (default: 3000) */
+  onMessage?: (data: WsMessage) => void;
   reconnectDelay?: number;
 }
 
 export function useWebSocket({ path, onMessage, reconnectDelay = 3000 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [connected, setConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
-  onMessageRef.current = onMessage;
+  const connectRef = useRef<(() => void) | undefined>(undefined);
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   const connect = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -27,7 +34,7 @@ export function useWebSocket({ path, onMessage, reconnectDelay = 3000 }: UseWebS
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data) as WsMessage;
         onMessageRef.current?.(data);
       } catch {
         // ignore non-JSON messages
@@ -36,7 +43,7 @@ export function useWebSocket({ path, onMessage, reconnectDelay = 3000 }: UseWebS
 
     ws.onclose = () => {
       setConnected(false);
-      setTimeout(() => connect(), reconnectDelay);
+      reconnectTimerRef.current = setTimeout(() => connectRef.current?.(), reconnectDelay);
     };
 
     ws.onerror = () => {
@@ -45,8 +52,16 @@ export function useWebSocket({ path, onMessage, reconnectDelay = 3000 }: UseWebS
   }, [path, reconnectDelay]);
 
   useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
+  useEffect(() => {
     connect();
     return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       wsRef.current?.close();
     };
   }, [connect]);

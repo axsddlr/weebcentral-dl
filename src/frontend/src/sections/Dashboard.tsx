@@ -18,23 +18,24 @@ export function Dashboard() {
   const [stats, setStats] = useState<api.DashboardStats | null>(null);
   const [queue, setQueue] = useState<api.QueueState | null>(null);
 
-  const fetchData = async () => {
-    try {
-      const [s, q] = await Promise.all([api.getStats(), api.getQueue()]);
-      setStats(s);
-      setQueue(q);
-    } catch (e) {
-      console.error('Failed to fetch dashboard data:', e);
-    }
-  };
-
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [s, q] = await Promise.all([api.getStats(), api.getQueue()]);
+        if (!cancelled) { setStats(s); setQueue(q); }
+      } catch (e) {
+        if (!cancelled) console.error('Failed to fetch dashboard data:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useWebSocket({
     path: '/ws/queue',
     onMessage: (msg) => {
       if (msg.type === 'queue_update') {
-        setQueue(msg.data);
+        setQueue(msg.data as api.QueueState);
         api.getStats().then(setStats).catch(() => {});
       }
     },
@@ -44,9 +45,10 @@ export function Dashboard() {
     path: '/ws/progress',
     onMessage: (msg) => {
       if (msg.type === 'progress' && queue) {
+        const task = msg.data as api.QueueTask;
         setQueue(prev => {
           if (!prev) return prev;
-          const tasks = prev.tasks.map(t => t.id === msg.data.id ? msg.data : t);
+          const tasks = prev.tasks.map(t => t.id === task.id ? task : t);
           return { ...prev, tasks };
         });
       }

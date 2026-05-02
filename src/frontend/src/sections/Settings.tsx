@@ -41,7 +41,7 @@ export function Settings() {
       setConfig(updated);
       setHasChanges(false);
       toast.success('Settings saved successfully');
-    } catch (e) {
+    } catch {
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);
@@ -54,7 +54,7 @@ export function Settings() {
       setConfig(defaults);
       setHasChanges(false);
       toast.info('Settings reset to defaults');
-    } catch (e) {
+    } catch {
       toast.error('Failed to reset settings');
     }
   };

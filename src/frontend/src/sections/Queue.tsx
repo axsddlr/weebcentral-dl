@@ -40,12 +40,23 @@ export function Queue() {
     }
   };
 
-  useEffect(() => { fetchQueue(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getQueue();
+        if (!cancelled) setQueue(data);
+      } catch (e) {
+        if (!cancelled) console.error('Failed to fetch queue:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useWebSocket({
     path: '/ws/queue',
     onMessage: (msg) => {
-      if (msg.type === 'queue_update') setQueue(msg.data);
+      if (msg.type === 'queue_update') setQueue(msg.data as api.QueueState);
     },
   });
 
@@ -53,9 +64,10 @@ export function Queue() {
     path: '/ws/progress',
     onMessage: (msg) => {
       if (msg.type === 'progress') {
+        const task = msg.data as api.QueueTask;
         setQueue(prev => ({
           ...prev,
-          tasks: prev.tasks.map(t => t.id === msg.data.id ? msg.data : t),
+          tasks: prev.tasks.map(t => t.id === task.id ? task : t),
         }));
       }
     },
@@ -103,7 +115,7 @@ export function Queue() {
         toast.info('Download queue resumed');
       }
       fetchQueue();
-    } catch (e) {
+    } catch {
       toast.error('Failed to toggle queue');
     }
   };
@@ -112,7 +124,7 @@ export function Queue() {
     try {
       await api.retryTask(taskId);
       toast.success('Task queued for retry');
-    } catch (e) {
+    } catch {
       toast.error('Failed to retry task');
     }
   };
@@ -121,7 +133,7 @@ export function Queue() {
     try {
       await api.removeTask(taskId);
       toast.success('Task removed from queue');
-    } catch (e) {
+    } catch {
       toast.error('Failed to remove task');
     }
   };
@@ -130,7 +142,7 @@ export function Queue() {
     try {
       await api.clearCompleted();
       toast.success('Completed tasks cleared');
-    } catch (e) {
+    } catch {
       toast.error('Failed to clear completed');
     }
   };
@@ -139,7 +151,7 @@ export function Queue() {
     try {
       await api.retryAllFailed();
       toast.success('All failed tasks queued for retry');
-    } catch (e) {
+    } catch {
       toast.error('Failed to retry all');
     }
   };

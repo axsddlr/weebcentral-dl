@@ -54,7 +54,7 @@ export function Search() {
       setSelectedManga(updated);
       // Update in results list too
       setSearchResults(prev => prev.map(m => m.id === manga.id ? updated : m));
-    } catch (e) {
+    } catch {
       toast.error('Failed to load chapters');
     } finally {
       setLoadingChapters(false);
@@ -118,7 +118,7 @@ export function Search() {
       toast.success(`Added all chapters to download queue`, {
         description: `${manga.title} - ${chapters.length} chapters`,
       });
-    } catch (e) {
+    } catch {
       toast.error('Failed to add to queue');
     }
   };
