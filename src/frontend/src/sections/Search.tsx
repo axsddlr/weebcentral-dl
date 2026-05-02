@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search as SearchIcon, Download, BookOpen, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,14 +19,54 @@ export function Search() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<MangaWithChapters[]>([]);
+  const [suggestions, setSuggestions] = useState<api.SearchResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const [selectedManga, setSelectedManga] = useState<MangaWithChapters | null>(null);
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [showChapterDialog, setShowChapterDialog] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
   const [loadingChapters, setLoadingChapters] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Debounced typeahead search
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query || query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await api.search(query);
+        setSuggestions(results.slice(0, 6));
+        setShowSuggestions(true);
+        setHighlightIndex(-1);
+      } catch {
+        // Silently ignore typeahead failures
+      }
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
+    setShowSuggestions(false);
     setIsSearching(true);
     try {
       const results = await api.search(searchQuery);
@@ -41,24 +81,54 @@ export function Search() {
     }
   };
 
-  const handleMangaSelect = async (manga: MangaWithChapters) => {
-    setSelectedManga(manga);
+  const selectSuggestion = useCallback(async (manga: api.SearchResult) => {
+    setShowSuggestions(false);
+    setSearchQuery(manga.title);
+    const withChapters: MangaWithChapters = { ...manga };
+    setSelectedManga(withChapters);
     setSelectedChapters(new Set());
     setSelectAll(false);
     setShowChapterDialog(true);
     setLoadingChapters(true);
-
     try {
       const chapters = await api.getSeriesChapters(manga.id);
-      const updated = { ...manga, chapters };
-      setSelectedManga(updated);
-      // Update in results list too
-      setSearchResults(prev => prev.map(m => m.id === manga.id ? updated : m));
+      setSelectedManga({ ...manga, chapters });
     } catch {
       toast.error('Failed to load chapters');
     } finally {
       setLoadingChapters(false);
     }
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSearch();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex(i => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightIndex >= 0) {
+        selectSuggestion(suggestions[highlightIndex]);
+      } else {
+        handleSearch();
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      inputRef.current?.blur();
+    }
+  };
+
+  const handleMangaSelect = async (manga: MangaWithChapters) => {
+    selectSuggestion(manga);
   };
 
   const handleChapterToggle = (chapterId: string) => {
@@ -134,25 +204,54 @@ export function Search() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search for manga title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="pl-10"
-              />
+          <div className="relative" ref={wrapperRef}>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  ref={inputRef}
+                  placeholder="Search by manga title or series ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                  className="pl-10"
+                />
+              </div>
+              <Button onClick={handleSearch} disabled={isSearching}>
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <SearchIcon className="h-4 w-4 mr-2" />
+                )}
+                Search
+              </Button>
             </div>
-            <Button onClick={handleSearch} disabled={isSearching}>
-              {isSearching ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <SearchIcon className="h-4 w-4 mr-2" />
-              )}
-              Search
-            </Button>
+
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-50 top-full mt-1 w-full rounded-md border bg-popover shadow-md">
+                {suggestions.map((s, i) => (
+                  <div
+                    key={s.id}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer ${
+                      i === highlightIndex ? 'bg-accent' : 'hover:bg-accent'
+                    }`}
+                    onMouseDown={() => selectSuggestion(s)}
+                    onMouseEnter={() => setHighlightIndex(i)}
+                  >
+                    {s.coverUrl ? (
+                      <img src={s.coverUrl} alt="" className="h-8 w-8 rounded object-cover" />
+                    ) : (
+                      <BookOpen className="h-8 w-8 p-1 text-muted-foreground" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="text-xs text-muted-foreground">{s.id}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
