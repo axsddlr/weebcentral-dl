@@ -8,6 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from src.config import ConfigLoader
+from src.utils import resolve_safe_path
 
 
 class ConfigWatcher(FileSystemEventHandler):
@@ -99,8 +100,19 @@ class MangaListWatcher(FileSystemEventHandler):
 
 def run_watcher():
     """Main watcher loop for Docker mode"""
+    cwd = os.getcwd()
     manga_file = Path(os.getenv("MANGA_LIST", "manga_list.txt"))
     config_file = Path(os.getenv("CONFIG_FILE", "config.toml"))
+
+    for env_name, file_path in [("MANGA_LIST", manga_file), ("CONFIG_FILE", config_file)]:
+        if not file_path.is_absolute():
+            try:
+                resolve_safe_path(cwd, str(file_path))
+            except ValueError:
+                print(f"[ERROR] {env_name} path '{file_path}' escapes working directory!")
+                exit(1)
+        else:
+            print(f"[WARNING] {env_name} is an absolute path '{file_path}'; ensure it is trusted.")
 
     if not manga_file.exists():
         print(f"[ERROR] {manga_file} not found!")
