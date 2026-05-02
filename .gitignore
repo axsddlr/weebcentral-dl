@@ -27,7 +27,10 @@ config.toml
 
 # Misc
 manga.txt
+manga_list.txt
 claude.md
 todo.md
+GEMINI.md
+agents.md
 test*
 Kimi_Agent_*/
