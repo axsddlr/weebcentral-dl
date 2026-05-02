@@ -269,7 +269,7 @@ export function Reader({ manga, chapter, onViewChange }: ReaderProps) {
           <div className="w-full h-full overflow-y-auto">
             <div className="flex flex-col items-center py-4 space-y-0">
               {pageUrls.map((url, index) => (
-                <img key={index} src={url} alt={`Page ${index + 1}`} className={cn("max-w-full", getFitModeClass())} />
+                <img key={index} src={url} alt={`Page ${index + 1}`} loading="lazy" className={cn("max-w-full", getFitModeClass())} />
               ))}
             </div>
           </div>
