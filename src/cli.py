@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """CLI interface for WeebCentral Downloader"""
 import argparse
+import re
 import sys
 from typing import Optional, Set
 from loguru import logger
 
 from src.downloader import WeebCentralDownloader
 from src.config import load_config
+
+
+SERIES_ID_PATTERN = re.compile(r'^[A-Z0-9]{26}$')
 
 
 def parse_chapter_arg(chapter_arg: Optional[str]) -> Optional[Set[str]]:
@@ -183,36 +187,66 @@ def main():
 
 
 def process_bulk_mode(downloader: WeebCentralDownloader, bulk_file: str, chapters_to_download: Optional[Set[str]]):
-    """Process manga from bulk file"""
+    """Process manga from bulk file.
+
+    Accepted line formats:
+        series_id=title       Direct ID with optional display title
+        series_id/title       Same as =, also handles weebcentral.com/series/ID/title URLs
+        A0B1C2... (26 chars)  Bare series ID (auto-detected)
+        Manga Title           Search by title on WeebCentral
+        # comment             Ignored
+    """
     try:
         with open(bulk_file, "r", encoding="utf-8") as f:
-            manga_list = [line.strip() for line in f if line.strip()]
-        logger.info(f"Found {len(manga_list)} manga titles in {bulk_file}")
-        for line in manga_list:
-            if "=" in line:
-                series_id, title = line.split("=", 1)
-                downloader.process_manga(
-                    title=title.strip(),
-                    series_id=series_id.strip(),
-                    chapters_to_download=chapters_to_download,
-                )
-            elif "/" in line:
-                series_id, title = line.split("/", 1)
-                downloader.process_manga(
-                    title=title.strip(),
-                    series_id=series_id.strip(),
-                    chapters_to_download=chapters_to_download,
-                )
-            else:
-                downloader.process_manga(
-                    title=line, chapters_to_download=chapters_to_download
-                )
+            raw_lines = [line.strip() for line in f]
     except FileNotFoundError:
         logger.error(f"Could not find bulk file: {bulk_file}")
         sys.exit(1)
     except Exception as e:
         logger.error(f"Error reading bulk file: {e}")
         sys.exit(1)
+
+    manga_list = [line for line in raw_lines if line and not line.startswith("#")]
+    logger.info(f"Found {len(manga_list)} entries in {bulk_file}")
+
+    for line in manga_list:
+        series_id = None
+        title = None
+
+        if "=" in line:
+            series_id, title = line.split("=", 1)
+            series_id = series_id.strip()
+            title = title.strip()
+            if not title:
+                logger.debug(f"Empty title for {series_id}, fetching from WeebCentral")
+
+        elif "/" in line:
+            cleaned = line
+            if cleaned.startswith("http"):
+                cleaned = re.sub(r'^https?://[^/]+/series/', '', cleaned)
+            series_id, title = cleaned.split("/", 1)
+            series_id = series_id.strip()
+            title = title.strip()
+            if not title:
+                logger.debug(f"Empty title for {series_id}, fetching from WeebCentral")
+            if not SERIES_ID_PATTERN.match(series_id):
+                logger.warning(f"Skipping unrecognized series ID after '/': {series_id}")
+                continue
+
+        elif SERIES_ID_PATTERN.match(line):
+            series_id = line
+            logger.debug(f"Bare series ID detected: {series_id}")
+
+        else:
+            title = line
+            logger.info(f"Searching: {title}")
+
+        if series_id and title:
+            downloader.process_manga(title=title, series_id=series_id, chapters_to_download=chapters_to_download)
+        elif series_id:
+            downloader.process_manga(series_id=series_id, chapters_to_download=chapters_to_download)
+        elif title:
+            downloader.process_manga(title=title, chapters_to_download=chapters_to_download)
 
 
 if __name__ == "__main__":
