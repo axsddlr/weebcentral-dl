@@ -71,14 +71,13 @@ class DownloadOrchestrator:
             f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} "
             f"(zip mode: {self.config.zip})"
         )
-        self.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
+        self.download_chapters(chapters, chapters_to_download, series_title)
 
     def download_chapters(
         self,
         chapters: List[Tuple[str, str, str]],
         chapters_to_download: Optional[Set[str]],
         series_title: str,
-        is_fresh: bool,
     ):
         out_dir = os.path.join(self.output_dir, series_title)
         chap_counter = 0
@@ -114,7 +113,7 @@ class DownloadOrchestrator:
                     shutil.rmtree(temp_dir)
 
             chap_counter += 1
-            if is_fresh and chap_counter % self.config.rlc == 0:
+            if chap_counter % self.config.rlc == 0:
                 wait = random.randint(15, self.config.max_sleep)
                 logger.info(
                     f"Rate limiting: sleeping for {wait} seconds after {chap_counter} chapters"

@@ -92,8 +92,8 @@ class WeebCentralDownloader:
     def archive_chapter(self, chapter_dir: str, series_title: str, chapter_num: str, chapter_type: str):
         self.archiver.archive_chapter(chapter_dir, series_title, chapter_num, chapter_type)
 
-    def download_chapters(self, chapters, chapters_to_download, series_title, is_fresh):
-        self.orchestrator.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
+    def download_chapters(self, chapters, chapters_to_download, series_title):
+        self.orchestrator.download_chapters(chapters, chapters_to_download, series_title)
 
     def process_manga(self, title=None, series_id=None, chapters_to_download=None):
         self.orchestrator.process_manga(title, series_id, chapters_to_download)
