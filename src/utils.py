@@ -5,10 +5,21 @@ from typing import Tuple
 
 
 def sanitize_title(title: str) -> str:
-    """Sanitizes a title to be used as a valid directory name."""
+    """Sanitizes a title to be used as a valid directory name.
+
+    Preserves non-ASCII characters (e.g. CJK) when the ASCII-stripped
+    result would be empty, so Japanese-only titles don't produce an
+    empty directory name.
+    """
     title = title.replace(" ", "-")
-    title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode()
-    title = re.sub(r"[^A-Za-z0-9\-_]", "", title)
+    ascii_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode()
+    ascii_title = re.sub(r"[^A-Za-z0-9\-_]", "", ascii_title)
+
+    if ascii_title.strip("-"):
+        return re.sub(r"-+", "-", ascii_title).strip("-")
+
+    title = re.sub(r'[<>:"/\\|?*]', "", title)
+    title = unicodedata.normalize("NFKC", title)
     return re.sub(r"-+", "-", title).strip("-")
 
 
