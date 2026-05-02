@@ -50,6 +50,7 @@ async def lifespan(app: FastAPI):
 
     app.state.config = config
     app.state.config_path = config_path
+    app.state.downloader = downloader
     app.state.library_cache = library_cache
     app.state.queue_manager = queue_manager
     app.state.log_collector = log_collector
