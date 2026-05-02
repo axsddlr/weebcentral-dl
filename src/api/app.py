@@ -38,7 +38,8 @@ async def verify_api_token(request: Request):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialize shared resources."""
-    config = load_config()
+    config_path = os.getenv("CONFIG_FILE", "config.toml")
+    config = load_config(config_path)
     downloader = WeebCentralDownloader(config)
 
     log_collector = LogCollector()
@@ -47,8 +48,8 @@ async def lifespan(app: FastAPI):
     library_cache = LibraryCache(config.output_dir)
     queue_manager = QueueManager(downloader, config, log_collector, library_cache)
 
-    app.state.downloader = downloader
     app.state.config = config
+    app.state.config_path = config_path
     app.state.library_cache = library_cache
     app.state.queue_manager = queue_manager
     app.state.log_collector = log_collector

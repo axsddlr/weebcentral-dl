@@ -45,7 +45,9 @@ class DownloaderConfig:
 class ConfigLoader:
     """Load configuration from TOML file with override support"""
 
-    def __init__(self, config_path: str = "config.toml"):
+    def __init__(self, config_path: str | None = None):
+        if config_path is None:
+            config_path = os.getenv("CONFIG_FILE", "config.toml")
         self.config_path = Path(config_path)
         self.raw_config: Dict[str, Any] = {}
 
@@ -99,29 +101,34 @@ class ConfigLoader:
             self.load_config()
 
 
-def load_config(config_path: str = "config.toml", cli_overrides: Optional[Dict[str, Any]] = None) -> DownloaderConfig:
+def load_config(config_path: str | None = None, cli_overrides: Optional[Dict[str, Any]] = None) -> DownloaderConfig:
     """
     Convenience function to load configuration
 
     Args:
-        config_path: Path to TOML config file
+        config_path: Path to TOML config file (defaults to CONFIG_FILE env var or config.toml)
         cli_overrides: Dictionary of CLI arguments to override TOML config
 
     Returns:
         DownloaderConfig instance with merged configuration
     """
+    if config_path is None:
+        config_path = os.getenv("CONFIG_FILE", "config.toml")
     loader = ConfigLoader(config_path)
     return loader.get_downloader_config(cli_overrides)
 
 
-def save_config(config: DownloaderConfig, config_path: str = "config.toml"):
+def save_config(config: DownloaderConfig, config_path: str | None = None):
     """Save configuration to TOML file.
 
     Args:
         config: DownloaderConfig instance to save
-        config_path: Path to TOML config file
+        config_path: Path to TOML config file (defaults to CONFIG_FILE env var or config.toml)
     """
     import tomli_w
+
+    if config_path is None:
+        config_path = os.getenv("CONFIG_FILE", "config.toml")
 
     # Only save persistent settings (not runtime-specific ones like query, series_id, etc.)
     persistent_fields = {

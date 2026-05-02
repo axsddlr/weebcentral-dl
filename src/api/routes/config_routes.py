@@ -31,7 +31,7 @@ async def get_config(request: Request):
 
 @router.put("/config")
 async def update_config(request: Request, body: ConfigUpdateRequest):
-    """Update configuration and save to config.toml."""
+    """Update configuration and save to config file."""
     config = request.app.state.config
 
     if body.outputDir is not None:
@@ -55,7 +55,7 @@ async def update_config(request: Request, body: ConfigUpdateRequest):
     if body.parallelWorkers is not None:
         config.parallel_workers = body.parallelWorkers
 
-    save_config(config)
+    save_config(config, request.app.state.config_path)
     return config_to_response(config)
 
 
@@ -65,5 +65,5 @@ async def reset_config(request: Request):
     default = DownloaderConfig()
     request.app.state.config = default
     request.app.state.downloader.config = default
-    save_config(default)
+    save_config(default, request.app.state.config_path)
     return config_to_response(default)
