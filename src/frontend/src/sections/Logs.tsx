@@ -118,13 +118,14 @@ export function Logs() {
     toast.success('Logs exported');
   };
 
-  const stats = {
-    total: logs.length,
-    info: logs.filter(l => l.level === 'info').length,
-    debug: logs.filter(l => l.level === 'debug').length,
-    warning: logs.filter(l => l.level === 'warning').length,
-    error: logs.filter(l => l.level === 'error').length,
-  };
+  const stats = logs.reduce(
+    (acc, l) => {
+      acc.total++;
+      acc[l.level] = (acc[l.level] || 0) + 1;
+      return acc;
+    },
+    { total: 0, info: 0, debug: 0, warning: 0, error: 0 } as Record<string, number>
+  );
 
   return (
     <div className="p-6 space-y-6">

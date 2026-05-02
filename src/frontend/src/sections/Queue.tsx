@@ -130,13 +130,17 @@ export function Queue() {
     failed: tasks.filter(t => t.status === 'failed'),
   };
 
-  const stats = {
-    total: tasks.length,
-    downloading: tasks.filter(t => t.status === 'downloading').length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    failed: tasks.filter(t => t.status === 'failed').length,
-  };
+  const stats = tasks.reduce(
+    (acc, t) => {
+      acc.total++;
+      if (t.status === 'downloading') acc.downloading++;
+      else if (t.status === 'pending') acc.pending++;
+      else if (t.status === 'completed') acc.completed++;
+      else if (t.status === 'failed') acc.failed++;
+      return acc;
+    },
+    { total: 0, downloading: 0, pending: 0, completed: 0, failed: 0 }
+  );
 
   const renderTaskList = (taskList: api.QueueTask[]) => (
     <div className="space-y-3">
