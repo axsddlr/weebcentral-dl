@@ -112,7 +112,7 @@ def get_folder_priority(folder_name, folder_path):
     try:
         mtime = os.path.getmtime(folder_path)
         score += mtime / 1000000  # Normalize timestamp to reasonable range
-    except:
+    except OSError:
         pass
 
     # Prefer folders with more chapters (tiebreaker)
@@ -120,7 +120,7 @@ def get_folder_priority(folder_name, folder_path):
         chapter_count = len([f for f in os.listdir(folder_path)
                             if f.endswith(('.cbz', '.zip'))])
         score += chapter_count * 10
-    except:
+    except OSError:
         pass
 
     return score
