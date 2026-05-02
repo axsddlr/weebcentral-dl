@@ -65,5 +65,6 @@ async def reset_config(request: Request):
     default = DownloaderConfig()
     request.app.state.config = default
     request.app.state.downloader.config = default
+    request.app.state.queue_manager.config = default
     save_config(default, request.app.state.config_path)
     return config_to_response(default)
