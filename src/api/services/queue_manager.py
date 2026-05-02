@@ -144,19 +144,29 @@ class QueueManager:
         }
 
     async def _worker(self):
-        """Background worker: process one task at a time."""
+        """Background worker: process one task at a time with circuit breaker."""
+        consecutive_failures = 0
         while True:
             try:
                 if self.is_running:
                     pending = next((t for t in self.tasks if t.status == "pending"), None)
                     if pending:
                         await self._process_task(pending)
-                await asyncio.sleep(1)
+                        consecutive_failures = 0
+                    else:
+                        await asyncio.sleep(1)
+                else:
+                    await asyncio.sleep(1)
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Queue worker error: {e}")
-                await asyncio.sleep(5)
+                consecutive_failures += 1
+                backoff = min(5 * (2 ** consecutive_failures), 300)
+                logger.error(
+                    f"Queue worker error (failure #{consecutive_failures}, "
+                    f"backoff {backoff}s): {e}"
+                )
+                await asyncio.sleep(backoff)
 
     async def _process_task(self, task: DownloadTask):
         """Process a single download task."""
