@@ -55,13 +55,25 @@ class ConfigLoader:
             self.load_config()
 
     def load_config(self) -> Dict[str, Any]:
-        """Load configuration from TOML file"""
+        """Load configuration from TOML file.
+
+        Returns:
+            Dict of raw config values, or empty dict if file doesn't exist.
+        Raises:
+            tomli.TOMLDecodeError: If the config file is malformed.
+        """
         try:
             with open(self.config_path, 'rb') as f:
                 self.raw_config = tomli.load(f)
                 return self.raw_config
+        except FileNotFoundError:
+            logger.info(f"No config file found at {self.config_path}, using defaults.")
+            return {}
+        except tomli.TOMLDecodeError:
+            logger.error(f"Malformed TOML in {self.config_path}. Fix the syntax or delete it to use defaults.")
+            raise
         except Exception as e:
-            logger.warning(f"Failed to load config from {self.config_path}: {e}")
+            logger.warning(f"Failed to load config from {self.config_path}: {type(e).__name__}: {e}")
             return {}
 
     def get_downloader_config(self, cli_overrides: Optional[Dict[str, Any]] = None) -> DownloaderConfig:
