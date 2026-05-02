@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import api_router
-from src.api.ws import ws_router
+from src.api.ws import ws_router, ConnectionManagers
 from src.api.services.queue_manager import QueueManager
 from src.api.services.library_cache import LibraryCache
 from src.api.services.log_collector import LogCollector
@@ -42,11 +42,13 @@ async def lifespan(app: FastAPI):
     config = load_config(config_path)
     downloader = WeebCentralDownloader(config)
 
-    log_collector = LogCollector()
+    ws_managers = ConnectionManagers()
+
+    log_collector = LogCollector(ws_managers=ws_managers)
     log_collector.install()
 
     library_cache = LibraryCache(config.output_dir)
-    queue_manager = QueueManager(downloader, config, log_collector, library_cache)
+    queue_manager = QueueManager(downloader, config, log_collector, library_cache, ws_managers)
 
     app.state.config = config
     app.state.config_path = config_path
@@ -54,6 +56,7 @@ async def lifespan(app: FastAPI):
     app.state.library_cache = library_cache
     app.state.queue_manager = queue_manager
     app.state.log_collector = log_collector
+    app.state.ws = ws_managers
 
     await queue_manager.start()
     yield

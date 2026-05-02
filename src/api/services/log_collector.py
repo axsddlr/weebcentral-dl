@@ -11,10 +11,11 @@ from loguru import logger
 class LogCollector:
     """Custom loguru sink that stores logs and broadcasts to WebSocket clients."""
 
-    def __init__(self, max_entries: int = 500):
+    def __init__(self, max_entries: int = 500, ws_managers=None):
         self.entries: deque = deque(maxlen=max_entries)
         self._sink_id: Optional[int] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self.ws = ws_managers
 
     def install(self):
         """Install as a loguru sink."""
@@ -49,8 +50,8 @@ class LogCollector:
             )
 
     async def _broadcast(self, entry: dict):
-        from src.api.ws import logs_manager
-        await logs_manager.broadcast({"type": "log", "data": entry})
+        if self.ws:
+            await self.ws.logs.broadcast({"type": "log", "data": entry})
 
     def get_logs(self) -> list:
         return list(self.entries)

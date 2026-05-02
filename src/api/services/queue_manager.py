@@ -46,11 +46,12 @@ class DownloadTask:
 
 
 class QueueManager:
-    def __init__(self, downloader: WeebCentralDownloader, config: DownloaderConfig, log_collector: LogCollector, library_cache: LibraryCache):
+    def __init__(self, downloader: WeebCentralDownloader, config: DownloaderConfig, log_collector: LogCollector, library_cache: LibraryCache, ws_managers):
         self.downloader = downloader
         self.config = config
         self.log_collector = log_collector
         self.library_cache = library_cache
+        self.ws = ws_managers
         self.tasks: list[DownloadTask] = []
         self.is_running = True
         self._worker_task: Optional[asyncio.Task] = None
@@ -237,8 +238,7 @@ class QueueManager:
                     task.status = "failed"
                     task.error = "No images found in chapter"
             finally:
-                if os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir)
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
         except Exception as e:
             task.status = "failed"
@@ -251,15 +251,13 @@ class QueueManager:
         await self._broadcast_progress(task)
 
     async def _broadcast_queue_update(self):
-        from src.api.ws import queue_manager_ws
-        await queue_manager_ws.broadcast({
+        await self.ws.queue.broadcast({
             "type": "queue_update",
             "data": self.get_queue_state(),
         })
 
     async def _broadcast_progress(self, task: DownloadTask):
-        from src.api.ws import progress_manager
-        await progress_manager.broadcast({
+        await self.ws.progress.broadcast({
             "type": "progress",
             "data": task.to_dict(),
         })
