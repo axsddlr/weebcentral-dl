@@ -1,5 +1,6 @@
 """File watcher for Docker mode with hot reload support"""
 import time
+import sys
 import subprocess
 import os
 from pathlib import Path
@@ -45,7 +46,7 @@ class MangaListWatcher(FileSystemEventHandler):
     def build_command(self) -> list:
         """Build python command with config options"""
         config = self.config_loader.get_downloader_config()
-        cmd = ["python", "-m", "src.cli", "-b", str(self.filepath)]
+        cmd = [sys.executable, "-m", "src.cli", "-b", str(self.filepath)]
 
         # Add CLI arguments from config
         if config.latest:
@@ -64,14 +65,20 @@ class MangaListWatcher(FileSystemEventHandler):
             cmd.append('--en')
 
         # Integer/string arguments
-        if config.rlc != 10:  # Only add if not default
+        if config.rlc != 10:
             cmd.extend(['--rlc', str(config.rlc)])
 
-        if config.max_sleep != 120:  # Only add if not default
+        if config.max_sleep != 120:
             cmd.extend(['--max-sleep', str(config.max_sleep)])
 
-        if config.max_retries != 5:  # Only add if not default
+        if config.max_retries != 5:
             cmd.extend(['--max-retries', str(config.max_retries)])
+
+        if config.parallel_workers != 99:
+            cmd.extend(['--parallel-workers', str(config.parallel_workers)])
+
+        if config.output_dir != "./manga_downloads":
+            cmd.extend(['-o', config.output_dir])
 
         return cmd
 
@@ -79,7 +86,14 @@ class MangaListWatcher(FileSystemEventHandler):
         """Process manga list file with current config"""
         cmd = self.build_command()
         print(f"[DOWNLOAD] Running: {' '.join(cmd)}")
-        subprocess.run(cmd)
+        try:
+            result = subprocess.run(cmd, timeout=3600, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"[ERROR] Download process exited with code {result.returncode}")
+                if result.stderr:
+                    print(f"[ERROR stderr] {result.stderr[:500]}")
+        except subprocess.TimeoutExpired:
+            print("[ERROR] Download process timed out after 1 hour")
         print(f"[DONE] Finished processing. Watching for changes...")
 
 
