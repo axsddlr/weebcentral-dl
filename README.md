@@ -48,10 +48,20 @@ Pages: Dashboard, Search (typeahead dropdown), **Tracked Manga**, Download Queue
 
 ### Docker
 
+Pre-built multi-arch image (amd64 + arm64):
+
+```bash
+docker pull ghcr.io/axsddlr/weebcentral-dl:ui
+```
+
+Then run with `docker-compose` (remove `build:` from compose to use the pulled image):
+
 ```bash
 docker-compose up -d              # API + UI on :8000
 docker-compose --profile watcher up -d  # + auto-download watcher
 ```
+
+For local builds, use `build: .` in `docker-compose.yml`.
 
 To read existing manga collections from other host folders, drop them into the `./library` directory:
 

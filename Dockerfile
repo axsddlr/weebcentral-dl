@@ -13,6 +13,8 @@ FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
+LABEL org.opencontainers.image.description="Web UI and CLI for downloading manga from WeebCentral as CBZ/ZIP archives"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 

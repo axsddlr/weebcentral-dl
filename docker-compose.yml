@@ -1,8 +1,9 @@
 services:
   manga-downloader:
-    build:
-      context: .
-    image: weebcentral-dl:latest
+    image: ghcr.io/axsddlr/weebcentral-dl:ui
+    # For local builds, replace the line above with:
+    # build:
+    #   context: .
     container_name: weebcentral-dl-ui
     ports:
       - "8000:8000"
