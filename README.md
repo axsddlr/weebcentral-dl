@@ -5,7 +5,7 @@ Download manga from [WeebCentral](https://weebcentral.com) as `.cbz`/`.zip` arch
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
+uv sync
 python main.py "Solo Leveling"
 ```
 

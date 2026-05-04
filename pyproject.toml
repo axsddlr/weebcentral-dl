@@ -1,0 +1,16 @@
+[project]
+name = "weebcentral-dl"
+version = "1.0.0"
+description = "CLI and Web UI for downloading manga from WeebCentral"
+requires-python = ">=3.11"
+dependencies = [
+    "cloudscraper==1.2.71",
+    "Pillow==11.3.0",
+    "loguru==0.7.3",
+    "watchdog==4.0.1",
+    "tomli==2.2.1",
+    "fastapi==0.135.1",
+    "uvicorn[standard]==0.42.0",
+    "tomli-w==1.2.0",
+    "aiofiles==24.1.0",
+]
