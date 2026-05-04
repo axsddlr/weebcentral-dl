@@ -63,6 +63,8 @@ export function Settings() {
     setConfig({ ...config, libraryPaths: paths });
     setHasChanges(true);
   };
+
+  const handleReset = async () => {
     try {
       const defaults = await api.resetConfig();
       setConfig(defaults);
