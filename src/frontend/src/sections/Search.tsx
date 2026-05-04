@@ -29,7 +29,7 @@ export function Search() {
   const [loadingChapters, setLoadingChapters] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Close dropdown on click outside
   useEffect(() => {
