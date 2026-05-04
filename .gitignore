@@ -26,11 +26,7 @@ config.toml
 .env.*
 
 # Misc
-manga.txt
-manga_list.txt
-claude.md
-todo.md
-GEMINI.md
-agents.md
-test*
+Kimi_Agent_*/
+test_output/
+test_api.py
 Kimi_Agent_*/
