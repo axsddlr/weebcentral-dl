@@ -1,10 +1,14 @@
 """Configuration management for WeebCentral Downloader"""
 import os
-import tomli
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict, field
-from loguru import logger
+from src.logging_utils import logger
+
+try:
+    import tomllib as tomli
+except ImportError:  # pragma: no cover - Python < 3.11 fallback
+    import tomli
 
 
 @dataclass

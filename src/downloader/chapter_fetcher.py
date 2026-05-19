@@ -1,7 +1,7 @@
 """Fetch chapter lists from WeebCentral (JSON API + HTML fallback)."""
 import re
 from typing import List, Tuple
-from loguru import logger
+from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 
 

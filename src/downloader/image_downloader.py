@@ -5,7 +5,7 @@ import time
 import random
 import concurrent.futures
 from typing import Optional
-from loguru import logger
+from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 
 

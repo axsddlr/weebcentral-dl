@@ -131,3 +131,12 @@ cd src/frontend && npm run dev    # Vite dev server
 cd src/frontend && npm run lint   # ESLint
 python -m pytest -q               # tests
 ```
+
+## Manga Utilities
+
+The manga maintenance commands now live in `src/manga_utils.py`. The top-level `manga_utils.py` file remains as a compatibility wrapper, so both of these work:
+
+```bash
+python manga_utils.py --help
+python -m src.manga_utils --help
+```

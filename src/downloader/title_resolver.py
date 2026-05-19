@@ -1,7 +1,7 @@
 """Resolve series titles, with optional English-name fallback."""
 import re
 import html
-from loguru import logger
+from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 from src.utils import sanitize_title
 

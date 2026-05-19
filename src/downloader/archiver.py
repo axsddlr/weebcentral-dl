@@ -4,7 +4,7 @@ import shutil
 import zipfile
 from src.utils import get_vol_and_chapter_names, has_images
 from src.downloader.cover_manager import CoverManager
-from loguru import logger
+from src.logging_utils import logger
 
 
 class Archiver:

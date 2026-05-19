@@ -2,7 +2,7 @@
 import re
 from urllib.parse import quote_plus
 from typing import Optional, Tuple
-from loguru import logger
+from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 from src.downloader.title_resolver import TitleResolver
 from src.utils import sanitize_title

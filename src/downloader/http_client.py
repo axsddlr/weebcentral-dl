@@ -3,7 +3,7 @@ import os
 import time
 import cloudscraper
 from typing import Any
-from loguru import logger
+from src.logging_utils import logger
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
 WEEBCENTRAL_URL = "https://weebcentral.com"

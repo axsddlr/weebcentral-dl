@@ -5,7 +5,7 @@ from collections import deque
 from datetime import datetime
 from typing import Optional
 
-from loguru import logger
+from src.logging_utils import logger
 
 
 class LogCollector:

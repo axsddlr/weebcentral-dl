@@ -5,7 +5,7 @@ import time
 import tempfile
 import shutil
 from typing import Optional, List, Tuple, Set
-from loguru import logger
+from src.logging_utils import logger
 
 from src.config import DownloaderConfig
 from src.downloader.http_client import HttpClient

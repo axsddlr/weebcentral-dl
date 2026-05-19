@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from loguru import logger
+from src.logging_utils import logger
 
 from src.config import DownloaderConfig
 from src.downloader import WeebCentralDownloader

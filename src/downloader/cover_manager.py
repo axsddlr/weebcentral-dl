@@ -2,8 +2,11 @@
 import os
 import re
 from typing import Optional
-from PIL import Image
-from loguru import logger
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover - optional dependency in tests
+    Image = None
+from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 from src.downloader.image_downloader import ImageDownloader
 from src.utils import find_cover_in_dir
@@ -22,6 +25,9 @@ class CoverManager:
     def download_and_convert(self, series_id: str, series_title: str):
         cover_path = self.download(series_id, series_title)
         if cover_path and cover_path.endswith(".webp"):
+            if Image is None:
+                logger.warning("Pillow is not installed; skipping WEBP cover conversion")
+                return
             try:
                 img = Image.open(cover_path).convert("RGB")
                 new_path = os.path.splitext(cover_path)[0] + ".jpg"

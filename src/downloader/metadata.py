@@ -1,7 +1,7 @@
 """Extract series metadata (title, description, authors, tags)."""
 import re
 import html
-from loguru import logger
+from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 
 

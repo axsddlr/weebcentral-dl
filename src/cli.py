@@ -4,7 +4,7 @@ import argparse
 import re
 import sys
 from typing import Optional, Set
-from loguru import logger
+from src.logging_utils import logger
 
 from src.downloader import WeebCentralDownloader
 from src.config import load_config
