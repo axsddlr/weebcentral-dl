@@ -175,6 +175,25 @@ export async function deleteSeries(seriesDir: string): Promise<void> {
   await request(`/api/library/${encodeURIComponent(seriesDir)}`, { method: 'DELETE' });
 }
 
+export interface MaintenanceResult {
+  updated?: number;
+  migrated?: number;
+  skipped?: number;
+  dry_run: boolean;
+}
+
+export async function addCoversMaintenance(dryRun: boolean): Promise<MaintenanceResult> {
+  return request<MaintenanceResult>(`/api/library/maintenance/add-covers?dry_run=${dryRun ? 'true' : 'false'}`, {
+    method: 'POST',
+  });
+}
+
+export async function migrateCoversMaintenance(dryRun: boolean): Promise<MaintenanceResult> {
+  return request<MaintenanceResult>(`/api/library/maintenance/migrate-covers?dry_run=${dryRun ? 'true' : 'false'}`, {
+    method: 'POST',
+  });
+}
+
 // --- Reader ---
 
 export interface PageList {
@@ -205,6 +224,7 @@ export interface AppConfig {
   zip: boolean;
   verbose: boolean;
   useEnglishTitle: boolean;
+  comicinfo: boolean;
   rlc: number;
   maxSleep: number;
   maxRetries: number;

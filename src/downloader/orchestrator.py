@@ -15,6 +15,8 @@ from src.downloader.chapter_tracker import ChapterTracker
 from src.downloader.image_downloader import ImageDownloader
 from src.downloader.cover_manager import CoverManager
 from src.downloader.archiver import Archiver
+from src.downloader.metadata import MetadataExtractor
+from src.comicinfo import build_comicinfo_xml
 from src.utils import get_vol_and_chapter_names
 
 
@@ -36,6 +38,7 @@ class DownloadOrchestrator:
         image_downloader: ImageDownloader,
         cover_manager: CoverManager,
         archiver: Archiver,
+        metadata_extractor: MetadataExtractor,
     ):
         self.config = config
         self.http = http
@@ -45,6 +48,7 @@ class DownloadOrchestrator:
         self.image_downloader = image_downloader
         self.cover_manager = cover_manager
         self.archiver = archiver
+        self.metadata_extractor = metadata_extractor
         self.output_dir = os.path.abspath(config.output_dir)
 
     def process_manga(
@@ -65,6 +69,10 @@ class DownloadOrchestrator:
 
         self.cover_manager.download_and_convert(series_id, series_title)
 
+        comicinfo_metadata = None
+        if getattr(self.config, "comicinfo", False):
+            comicinfo_metadata = self.metadata_extractor.get_series_metadata(series_id)
+
         out_dir = os.path.join(self.output_dir, series_title)
         is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
 
@@ -78,13 +86,15 @@ class DownloadOrchestrator:
             f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} "
             f"(zip mode: {self.config.zip})"
         )
-        self.download_chapters(chapters, chapters_to_download, series_title)
+        self.download_chapters(chapters, chapters_to_download, series_title, comicinfo_metadata, series_id)
 
     def download_chapters(
         self,
         chapters: List[Tuple[str, str, str]],
         chapters_to_download: Optional[Set[str]],
         series_title: str,
+        comicinfo_metadata: dict | None = None,
+        series_id: str | None = None,
     ):
         out_dir = os.path.join(self.output_dir, series_title)
         chap_counter = 0
@@ -114,7 +124,24 @@ class DownloadOrchestrator:
                     chap_id, chap_num, temp_dir, chapter_dir_name
                 )
                 if chapter_dir:
-                    self.archiver.archive_chapter(chapter_dir, series_title, chap_num, ct)
+                    comicinfo_xml = None
+                    if comicinfo_metadata and series_id:
+                        comicinfo_series_title = comicinfo_metadata.get("title") or series_title
+                        comicinfo_xml = build_comicinfo_xml(
+                            series_title=comicinfo_series_title,
+                            series_id=series_id,
+                            chapter_num=chap_num,
+                            chapter_type=ct,
+                            metadata=comicinfo_metadata,
+                            source_url=f"https://weebcentral.com/series/{series_id}",
+                        )
+                    self.archiver.archive_chapter(
+                        chapter_dir,
+                        series_title,
+                        chap_num,
+                        ct,
+                        comicinfo_xml=comicinfo_xml,
+                    )
             finally:
                 shutil.rmtree(temp_dir, ignore_errors=True)
 

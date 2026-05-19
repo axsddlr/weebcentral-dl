@@ -19,3 +19,15 @@ class MangaUtilsModuleTests(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "01ABCDEF1234567890ABCDEF12.jpg").write_bytes(b"cover")
             self.assertEqual(module.find_series_id(tmpdir), "01ABCDEF1234567890ABCDEF12")
+
+    def test_migrate_covers_command_renames_legacy_files(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            folder = Path(tmpdir, "Series")
+            folder.mkdir()
+            legacy = folder / "01ABCDEF1234567890ABCDEF34.jpg"
+            legacy.write_bytes(b"cover")
+
+            result = module.migrate_covers_command(tmpdir, dry_run=False, verbose=False)
+
+            self.assertEqual(result["migrated"], 1)
+            self.assertTrue((folder / "01ABCDEF1234567890ABCDEF34-cover.jpg").exists())

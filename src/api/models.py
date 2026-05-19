@@ -104,6 +104,7 @@ class ConfigResponse(BaseModel):
     zip: bool
     verbose: bool
     useEnglishTitle: bool
+    comicinfo: bool
     rlc: int
     maxSleep: int
     maxRetries: int
@@ -118,6 +119,7 @@ class ConfigUpdateRequest(BaseModel):
     zip: Optional[bool] = None
     verbose: Optional[bool] = None
     useEnglishTitle: Optional[bool] = None
+    comicinfo: Optional[bool] = None
     rlc: Optional[int] = Field(None, ge=1, le=1000, description="Rate limit count (chapters)")
     maxSleep: Optional[int] = Field(None, ge=0, le=3600, description="Max sleep time (seconds)")
     maxRetries: Optional[int] = Field(None, ge=0, le=100, description="Max retries per image")

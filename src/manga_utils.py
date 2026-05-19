@@ -22,9 +22,17 @@ from collections import defaultdict
 from src.logging_utils import logger
 
 try:
-    from src.utils import find_cover_in_dir
+    from src.utils import (
+        find_cover_in_dir,
+        is_legacy_cover_filename,
+        legacy_cover_target_filename,
+        migrate_legacy_cover_filenames,
+    )
 except ImportError:
     find_cover_in_dir = None
+    is_legacy_cover_filename = None
+    legacy_cover_target_filename = None
+    migrate_legacy_cover_filenames = None
 
 try:
     from src.downloader.http_client import HttpClient
@@ -358,6 +366,50 @@ def add_covers_to_archives_command(manga_dir, dry_run=False, verbose=False):
 
     if dry_run:
         logger.info("\nThis was a DRY RUN. Run without --dry-run to actually add covers.")
+
+    return {"updated": updated_count, "skipped": skipped_count, "dry_run": dry_run}
+
+
+def migrate_covers_command(manga_dir, dry_run=False, verbose=False):
+    """Migrate legacy cover filenames to the explicit naming scheme."""
+    if not migrate_legacy_cover_filenames:
+        logger.error("Cover migration helpers are unavailable")
+        return {"migrated": 0, "dry_run": dry_run}
+
+    logger.info(f"Scanning manga folders in: {manga_dir}")
+    logger.info(f"Mode: {'DRY RUN (no changes will be made)' if dry_run else 'LIVE (will rename cover files)'}\n")
+
+    migrated_count = 0
+    skipped_count = 0
+
+    for folder_name in sorted(os.listdir(manga_dir)):
+        folder_path = os.path.join(manga_dir, folder_name)
+
+        if not os.path.isdir(folder_path):
+            continue
+
+        legacy_files = [f for f in os.listdir(folder_path) if is_legacy_cover_filename and is_legacy_cover_filename(f)]
+        if not legacy_files:
+            skipped_count += 1
+            continue
+
+        if dry_run:
+            for filename in legacy_files:
+                target = legacy_cover_target_filename(filename) if legacy_cover_target_filename else None
+                logger.info(f"  Would migrate: '{filename}' -> '{target}'")
+            migrated_count += len(legacy_files)
+            continue
+
+        count = migrate_legacy_cover_filenames(folder_path, dry_run=False)
+        migrated_count += count
+        logger.success(f"Migrated {count} cover file(s) in '{folder_name}'")
+
+    logger.info(f"\nSummary: {migrated_count} legacy cover file(s) {'would be' if dry_run else 'were'} migrated, {skipped_count} skipped.")
+
+    if dry_run:
+        logger.info("\nThis was a DRY RUN. Run without --dry-run to actually migrate covers.")
+
+    return {"migrated": migrated_count, "skipped": skipped_count, "dry_run": dry_run}
 
 
 def rename_to_english_command(manga_dir, dry_run=False, verbose=False):

@@ -17,6 +17,8 @@ export function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newLibraryPath, setNewLibraryPath] = useState('');
+  const [maintenanceDryRun, setMaintenanceDryRun] = useState(true);
+  const [runningMaintenance, setRunningMaintenance] = useState<null | 'add-covers' | 'migrate-covers'>(null);
 
   useEffect(() => {
     api.getConfig().then(c => {
@@ -72,6 +74,23 @@ export function Settings() {
       toast.info('Settings reset to defaults');
     } catch {
       toast.error('Failed to reset settings');
+    }
+  };
+
+  const handleMaintenance = async (kind: 'add-covers' | 'migrate-covers') => {
+    setRunningMaintenance(kind);
+    try {
+      const result = kind === 'add-covers'
+        ? await api.addCoversMaintenance(maintenanceDryRun)
+        : await api.migrateCoversMaintenance(maintenanceDryRun);
+
+      const label = kind === 'add-covers' ? 'Add Covers' : 'Migrate Covers';
+      const count = result.updated ?? result.migrated ?? 0;
+      toast.success(`${label}: ${count} item(s) ${maintenanceDryRun ? 'would be' : 'were'} processed`);
+    } catch {
+      toast.error('Maintenance action failed');
+    } finally {
+      setRunningMaintenance(null);
     }
   };
 
@@ -190,6 +209,14 @@ export function Settings() {
                 </div>
                 <Switch checked={config.zip} onCheckedChange={(checked) => handleChange('zip', checked)} />
               </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>ComicInfo Metadata</Label>
+                  <p className="text-sm text-muted-foreground">Write ComicInfo.xml into chapter archives for reader metadata support</p>
+                </div>
+                <Switch checked={config.comicinfo} onCheckedChange={(checked) => handleChange('comicinfo', checked)} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -273,6 +300,39 @@ export function Settings() {
                   <p className="text-sm text-muted-foreground">Enable detailed debug output for troubleshooting</p>
                 </div>
                 <Switch checked={config.verbose} onCheckedChange={(checked) => handleChange('verbose', checked)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Library Maintenance</CardTitle>
+              <CardDescription>Run cover maintenance on the current output library</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Dry Run</Label>
+                  <p className="text-sm text-muted-foreground">Preview changes before writing to disk</p>
+                </div>
+                <Switch checked={maintenanceDryRun} onCheckedChange={setMaintenanceDryRun} />
+              </div>
+              <Separator />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleMaintenance('add-covers')}
+                  disabled={runningMaintenance !== null}
+                >
+                  {runningMaintenance === 'add-covers' ? 'Running...' : 'Add Covers'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleMaintenance('migrate-covers')}
+                  disabled={runningMaintenance !== null}
+                >
+                  {runningMaintenance === 'migrate-covers' ? 'Running...' : 'Migrate Covers'}
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -6,6 +6,7 @@ import asyncio
 from fastapi import APIRouter, Request, HTTPException
 
 from src.utils import resolve_safe_path
+from src.manga_utils import add_covers_to_archives_command, migrate_covers_command
 
 router = APIRouter(tags=["library"])
 
@@ -45,3 +46,19 @@ async def delete_series(request: Request, series_dir: str):
     await asyncio.to_thread(shutil.rmtree, series_path)
     cache.invalidate_all()
     return {"deleted": True}
+
+
+@router.post("/library/maintenance/add-covers")
+async def add_covers(request: Request, dry_run: bool = False):
+    """Add covers to all archives under the configured output directory."""
+    output_dir = request.app.state.config.output_dir
+    result = await asyncio.to_thread(add_covers_to_archives_command, output_dir, dry_run, False)
+    return result
+
+
+@router.post("/library/maintenance/migrate-covers")
+async def migrate_covers(request: Request, dry_run: bool = False):
+    """Rename legacy cover filenames to the explicit naming scheme."""
+    output_dir = request.app.state.config.output_dir
+    result = await asyncio.to_thread(migrate_covers_command, output_dir, dry_run, False)
+    return result

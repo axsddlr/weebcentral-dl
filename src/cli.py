@@ -132,6 +132,11 @@ def main():
         help="Use English title from series page instead of URL slug",
     )
     parser.add_argument(
+        "--comicinfo",
+        action="store_true",
+        help="Embed ComicInfo.xml in chapter archives",
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default="config.toml",
@@ -183,6 +188,7 @@ def main():
         'bulk_file': args.bulk_file,
         'series_id': args.series_id,
         'chapters': args.chapter,
+        'comicinfo': args.comicinfo if args.comicinfo else None,
     }
 
     # Load query from args

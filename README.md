@@ -100,6 +100,7 @@ Copy `example.config.toml` to `config.toml`:
 output_dir = "./manga_downloads"
 library_paths = []       # extra folders for the Library reader
 use_english_title = false
+comicinfo = false        # write ComicInfo.xml into chapter archives
 zip = false              # false = .cbz, true = .zip
 latest = false           # only new chapters
 rlc = 10                 # chapters between rate-limit pauses
@@ -109,6 +110,10 @@ parallel_workers = 99    # 1 = sequential
 ```
 
 Settings are editable from the Web UI and saved automatically.
+
+To enable ComicInfo output from the UI, turn on `ComicInfo Metadata` in Settings or set `comicinfo = true` in `config.toml`.
+
+The Settings page also includes library maintenance actions for adding archive covers and migrating legacy cover filenames in place.
 
 ## Watcher Mode
 

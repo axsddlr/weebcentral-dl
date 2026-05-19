@@ -54,6 +54,7 @@ class DownloaderIntegrationTests(TestCase):
             zip=False,
             verbose=False,
             use_english_title=False,
+            comicinfo=False,
             rlc=10,
             max_sleep=5,
             max_retries=3,
@@ -89,6 +90,7 @@ class DownloaderIntegrationTests(TestCase):
                 image_downloader=FakeImageDownloader(),
                 cover_manager=cover_manager,
                 archiver=Archiver(cover_manager, tmpdir, use_zip=False),
+                metadata_extractor=Mock(),
             )
 
             orchestrator.process_manga(title="Ignored by fake resolver")
@@ -143,6 +145,7 @@ class DownloaderIntegrationTests(TestCase):
                 image_downloader=image_downloader,
                 cover_manager=cover_manager,
                 archiver=Archiver(cover_manager, tmpdir, use_zip=False),
+                metadata_extractor=Mock(),
             )
 
             orchestrator.process_manga(title="Ignored by fake resolver")
@@ -174,3 +177,59 @@ class DownloaderIntegrationTests(TestCase):
         self.assertEqual(metadata["authors"], ["Author One"])
         self.assertEqual(metadata["tags"], ["Action", "Drama"])
         self.assertEqual(metadata["coverUrl"], "https://example.test/cover.webp")
+
+    def test_process_manga_writes_comicinfo_xml_when_enabled(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = self._build_config(tmpdir)
+            config.comicinfo = True
+            series_id = "01ABCDEF1234567890ABCDEF56"
+            series_title = "Series-Title"
+            chapters = [("Chapter", "1", "CH1")]
+
+            cover_manager = Mock()
+
+            def _write_cover(_series_id, _series_title):
+                cover_dir = Path(tmpdir) / series_title
+                cover_dir.mkdir(parents=True, exist_ok=True)
+                cover_path = cover_dir / f"{series_id}-cover.jpg"
+                cover_path.write_bytes(b"cover")
+                return str(cover_path)
+
+            cover_manager.download_and_convert.side_effect = _write_cover
+            cover_manager.get_cover_image_path.side_effect = (
+                lambda requested_title: str(Path(tmpdir) / requested_title / f"{series_id}-cover.jpg")
+            )
+
+            metadata_extractor = Mock()
+            metadata_extractor.get_series_metadata.return_value = {
+                "title": "Series Title",
+                "description": "Series summary",
+                "authors": ["Author One"],
+                "tags": ["Action"],
+                "coverUrl": "https://example.test/cover.webp",
+            }
+
+            orchestrator = DownloadOrchestrator(
+                config=config,
+                http=Mock(),
+                series_resolver=FakeSeriesResolver((series_id, series_title)),
+                chapter_fetcher=FakeChapterFetcher(chapters),
+                chapter_tracker=ChapterTracker(tmpdir),
+                image_downloader=FakeImageDownloader(),
+                cover_manager=cover_manager,
+                archiver=Archiver(cover_manager, tmpdir, use_zip=False),
+                metadata_extractor=metadata_extractor,
+            )
+
+            orchestrator.process_manga(title="Ignored by fake resolver")
+
+            archive = Path(tmpdir) / series_title / f"{series_title}-1.cbz"
+            self.assertTrue(archive.exists())
+
+            with zipfile.ZipFile(archive, "r") as zf:
+                self.assertIn("ComicInfo.xml", zf.namelist())
+                xml = zf.read("ComicInfo.xml").decode("utf-8")
+                self.assertIn("<Series>Series Title</Series>", xml)
+                self.assertIn("<Title>1</Title>", xml)
+                self.assertIn("<Number>1</Number>", xml)
+                self.assertIn("<Summary>Series summary</Summary>", xml)

@@ -20,6 +20,7 @@ class DownloaderConfig:
     zip: bool = False
     verbose: bool = False
     use_english_title: bool = False
+    comicinfo: bool = False
 
     # Rate limiting & retries
     rlc: int = 10
@@ -149,7 +150,7 @@ def save_config(config: DownloaderConfig, config_path: str | None = None):
 
     # Only save persistent settings (not runtime-specific ones like query, series_id, etc.)
     persistent_fields = {
-        'latest', 'sequence', 'zip', 'verbose', 'use_english_title',
+        'latest', 'sequence', 'zip', 'verbose', 'use_english_title', 'comicinfo',
         'rlc', 'max_sleep', 'max_retries', 'parallel_workers', 'output_dir',
         'library_paths',
     }

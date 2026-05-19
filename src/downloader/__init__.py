@@ -33,7 +33,7 @@ class WeebCentralDownloader:
         self.archiver = Archiver(self.cover_manager, os.path.abspath(config.output_dir), getattr(config, 'zip', False))
         self.orchestrator = DownloadOrchestrator(
             config, self.http, self.series_resolver, self.chapter_fetcher,
-            self.chapter_tracker, self.image_downloader, self.cover_manager, self.archiver,
+            self.chapter_tracker, self.image_downloader, self.cover_manager, self.archiver, self.metadata,
         )
 
         self._output_dir = os.path.abspath(config.output_dir)

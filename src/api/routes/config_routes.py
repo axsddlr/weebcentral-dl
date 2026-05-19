@@ -15,6 +15,7 @@ def config_to_response(config: DownloaderConfig) -> dict:
         "zip": config.zip,
         "verbose": config.verbose,
         "useEnglishTitle": config.use_english_title,
+        "comicinfo": config.comicinfo,
         "rlc": config.rlc,
         "maxSleep": config.max_sleep,
         "maxRetries": config.max_retries,
@@ -47,6 +48,8 @@ async def update_config(request: Request, body: ConfigUpdateRequest):
         config.verbose = body.verbose
     if body.useEnglishTitle is not None:
         config.use_english_title = body.useEnglishTitle
+    if body.comicinfo is not None:
+        config.comicinfo = body.comicinfo
     if body.rlc is not None:
         config.rlc = body.rlc
     if body.maxSleep is not None:
