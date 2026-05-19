@@ -21,6 +21,7 @@ from collections import defaultdict
 
 from src.utils import (
     choose_series_title,
+    build_cover_archive_name,
     extract_series_id_from_cover_filename,
     find_cover_image_path,
     legacy_cover_target_filename,
@@ -296,10 +297,9 @@ def add_covers_to_archives_command(manga_dir, dry_run=False, verbose=False):
 
                     try:
                         # Copy archive with cover prepended
-                        cover_ext = os.path.splitext(cover_path)[1]
                         with zipfile.ZipFile(tmp_path, 'w', zipfile.ZIP_DEFLATED) as new_zf:
                             # Add cover as first file
-                            new_zf.write(cover_path, arcname=f'000-cover{cover_ext}')
+                            new_zf.write(cover_path, arcname=build_cover_archive_name(cover_path))
 
                             # Copy existing files
                             with zipfile.ZipFile(archive_path, 'r') as old_zf:

@@ -71,6 +71,11 @@ def legacy_cover_target_filename(filename: str) -> Optional[str]:
     return build_cover_filename(path.stem, path.suffix)
 
 
+def build_cover_archive_name(cover_path: str) -> str:
+    """Build the archive entry name for a cover image."""
+    return f"000-cover{Path(cover_path).suffix.lower()}"
+
+
 def migrate_legacy_cover_filename(folder_path: str, filename: str) -> Optional[str]:
     """Rename a legacy cover filename to the explicit cover naming scheme.
 

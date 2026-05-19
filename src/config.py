@@ -15,6 +15,7 @@ class DownloaderConfig:
     zip: bool = False
     verbose: bool = False
     use_english_title: bool = False
+    comicinfo: bool = False
 
     # Rate limiting & retries
     rlc: int = 10

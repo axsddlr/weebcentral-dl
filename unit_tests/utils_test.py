@@ -5,17 +5,22 @@ from pathlib import Path
 import manga_utils
 from src.utils import (
     build_cover_filename,
+    build_cover_archive_name,
     choose_series_title,
     extract_series_id_from_cover_filename,
     find_cover_image_path,
     migrate_legacy_cover_filename,
     migrate_legacy_cover_filenames,
 )
+from src.comicinfo import SeriesMetadata, build_comicinfo_xml, extract_series_metadata
 
 
 class TestUtils(unittest.TestCase):
     def test_build_cover_filename(self):
         self.assertEqual(build_cover_filename("01ABC", ".webp"), "01ABC-cover.webp")
+
+    def test_build_cover_archive_name(self):
+        self.assertEqual(build_cover_archive_name("/tmp/01ABC-cover.webp"), "000-cover.webp")
 
     def test_extract_series_id_from_cover_filename(self):
         self.assertEqual(
@@ -43,6 +48,43 @@ class TestUtils(unittest.TestCase):
             ),
             "English Alternate",
         )
+
+    def test_extract_series_metadata_parses_series_page(self):
+        page_html = """
+        <html>
+          <body>
+            <h1>Japanese Title</h1>
+            <strong>Description</strong><p>Short summary</p>
+            <strong>Author</strong><ul><li><a href="/author/a">Author One</a></li></ul>
+            <strong>Tags</strong><ul><li><a href="/tag/t">Action</a></li></ul>
+          </body>
+        </html>
+        """
+        metadata = extract_series_metadata(page_html, "SERIES123", "https://example.test")
+        self.assertEqual(metadata.series_title, "Japanese Title")
+        self.assertEqual(metadata.description, "Short summary")
+        self.assertEqual(metadata.authors, ["Author One"])
+        self.assertEqual(metadata.tags, ["Action"])
+
+    def test_build_comicinfo_xml_contains_series_metadata(self):
+        metadata = SeriesMetadata(
+            series_id="SERIES123",
+            series_title="Series Title",
+            source_url="https://example.test/series/SERIES123",
+            description="Summary text",
+            authors=["Author One"],
+            tags=["Action"],
+        )
+
+        xml = build_comicinfo_xml(metadata, chapter_title="Chapter 1", chapter_number="1")
+
+        self.assertIn("<Series>Series Title</Series>", xml)
+        self.assertIn("<Title>Chapter 1</Title>", xml)
+        self.assertIn("<Number>1</Number>", xml)
+        self.assertIn("<Summary>Summary text</Summary>", xml)
+        self.assertIn("<Writer>Author One</Writer>", xml)
+        self.assertIn("<Genre>Action</Genre>", xml)
+        self.assertIn("<Web>https://example.test/series/SERIES123</Web>", xml)
 
 
 class TestMangaUtils(unittest.TestCase):

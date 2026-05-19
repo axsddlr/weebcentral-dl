@@ -13,6 +13,7 @@ Available as both a **CLI tool** for manual downloads and a **Docker container**
 - **High-Speed Downloads**: Utilizes bounded parallel image downloading to significantly speed up the process
 - **Sequential Mode**: Option to download images one by one for sites that are sensitive to high traffic
 - **Flexible Archiving**: Save chapters as `.cbz` (default) or `.zip` archives
+- **ComicInfo Output**: Embed `ComicInfo.xml` metadata into chapter archives when enabled
 - **Bulk Processing**: Download multiple series at once from a text file
 - **Smart Resuming**: Automatically detect the last downloaded chapter and continue from there
 - **Docker Support**: Run as a container with automatic file watching and hot reload
@@ -220,6 +221,7 @@ max_retries = 10
 # Use English titles and .cbz format
 [downloader]
 use_english_title = true
+comicinfo = true
 zip = false  # false = .cbz, true = .zip
 ```
 
@@ -496,6 +498,7 @@ The `manga_utils.py` script provides tools for managing your downloaded manga co
 - **English Renaming**: Convert folder names from romaji to English titles
 - **Add Cover Images**: Embed cover images into existing archives as the first page for manga readers
 - **Migrate Legacy Covers**: Rename old 26-character cover files to the explicit naming scheme
+- **ComicInfo Metadata**: Write `ComicInfo.xml` into each chapter archive when enabled
 - **Smart Prioritization**: Keeps the folder with longer names (newer format) and more chapters
 - **Dry Run Mode**: Preview all changes before applying them
 
@@ -530,6 +533,14 @@ python manga_utils.py add-covers Y:\manga\main -v
 python manga_utils.py migrate-covers Y:\manga\main --dry-run
 ```
 
+### ComicInfo Metadata
+
+Pass `--comicinfo` to the downloader to embed a `ComicInfo.xml` file into each chapter archive.
+
+```bash
+python main.py "Solo Leveling" --comicinfo
+```
+
 ### How It Works
 
 **Duplicate Detection:**
@@ -562,6 +573,14 @@ python manga_utils.py migrate-covers Y:\manga\main --dry-run
 - `manga_utils.py migrate-covers` renames old 26-character cover files in place
 - Use `--dry-run` first to preview changes before updating your library
 
+### Upgrading Existing Libraries
+
+If you downloaded manga before explicit cover filenames were introduced:
+
+1. Run `python manga_utils.py migrate-covers /path/to/manga --dry-run` to preview changes
+2. Run `python manga_utils.py migrate-covers /path/to/manga` to rename old cover files in place
+3. Re-run `python manga_utils.py add-covers /path/to/manga` if you want to re-embed covers into existing archives
+
 **Important:** Always use `--dry-run` first to preview changes before making any modifications!
 
 ---
@@ -574,6 +593,7 @@ The project uses a modular architecture with clear separation of concerns:
 weebcentral-dl/
 ├── src/                      # Core source code package
 │   ├── downloader.py         # WeebCentralDownloader class (core logic)
+│   ├── comicinfo.py          # ComicInfo.xml metadata helpers
 │   ├── utils.py              # Helper functions (sanitize, formatting)
 │   ├── config.py             # Configuration loader (TOML support)
 │   ├── cli.py                # CLI argument parsing

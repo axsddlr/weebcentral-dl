@@ -120,6 +120,11 @@ def main():
         help="Use English title from series page instead of URL slug",
     )
     parser.add_argument(
+        "--comicinfo",
+        action="store_true",
+        help="Write ComicInfo.xml into each chapter archive",
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default="config.toml",
@@ -134,6 +139,7 @@ def main():
         'zip': args.zip if args.zip else None,
         'verbose': args.verbose if args.verbose else None,
         'use_english_title': args.use_english_title if args.use_english_title else None,
+        'comicinfo': args.comicinfo if args.comicinfo else None,
         'rlc': args.rlc,
         'max_sleep': args.max_sleep,
         'max_retries': args.max_retries,

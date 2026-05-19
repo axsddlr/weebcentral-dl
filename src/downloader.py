@@ -12,10 +12,12 @@ import cloudscraper
 from typing import List, Optional, Tuple, Set
 from PIL import Image
 from src.logging_utils import logger
+from src.comicinfo import build_comicinfo_xml, extract_series_metadata, SeriesMetadata
 
 from src.utils import (
     build_cover_filename,
     choose_series_title,
+    build_cover_archive_name,
     find_cover_image_path,
     get_vol_and_chapter_names,
     has_images,
@@ -40,6 +42,7 @@ class WeebCentralDownloader:
         })
         self.output_dir = os.path.abspath(config.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
+        self._series_metadata_cache: dict[str, SeriesMetadata] = {}
 
     def log_not_found(self, msg: str):
         try:
@@ -264,16 +267,49 @@ class WeebCentralDownloader:
                 concurrent.futures.wait(futures)
         return chapter_dir
 
-    def get_cover_image_path(self, series_id: str, series_title: str) -> Optional[str]:
-        """Find the cover image (jpg or webp) for the series."""
+    def get_cover_image_path(self, series_title: str) -> Optional[str]:
+        """Find the cover image for the series."""
         series_dir = os.path.join(self.output_dir, series_title)
-        cover_path = find_cover_image_path(series_dir)
-        if cover_path and os.path.basename(cover_path).startswith(f"{series_id}-cover"):
-            return cover_path
-        return None
+        return find_cover_image_path(series_dir)
+
+    def get_series_metadata(self, series_id: str, series_title: str) -> SeriesMetadata:
+        """Fetch and parse series metadata for ComicInfo output."""
+        if series_id in self._series_metadata_cache:
+            return self._series_metadata_cache[series_id]
+
+        url = f"{WEEBCENTRAL_URL}/series/{series_id}"
+        resp = self.scraper.get(url)
+        metadata = extract_series_metadata(resp.text, series_id, url)
+        if not metadata.series_title:
+            metadata = SeriesMetadata(
+                series_id=series_id,
+                series_title=series_title,
+                source_url=url,
+                description=metadata.description,
+                authors=metadata.authors,
+                tags=metadata.tags,
+            )
+
+        self._series_metadata_cache[series_id] = metadata
+        return metadata
+
+    def build_comicinfo_for_chapter(
+        self,
+        series_metadata: SeriesMetadata,
+        chapter_num: str,
+        chapter_type: str,
+    ) -> str:
+        chapter_title = f"{chapter_type} {chapter_num}".strip() if chapter_type else chapter_num
+        return build_comicinfo_xml(series_metadata, chapter_title=chapter_title, chapter_number=chapter_num)
 
     def archive_chapter(
-        self, chapter_dir: str, series_id: str, series_title: str, chapter_num: str, chapter_type: str
+        self,
+        chapter_dir: str,
+        series_id: str,
+        series_title: str,
+        chapter_num: str,
+        chapter_type: str,
+        series_metadata: Optional[SeriesMetadata] = None,
     ):
         out_dir = os.path.join(self.output_dir, series_title)
         os.makedirs(out_dir, exist_ok=True)
@@ -297,10 +333,15 @@ class WeebCentralDownloader:
             # Create archive with cover as first page
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 # Add cover as 000-cover.jpg (sorts first)
-                cover_path = self.get_cover_image_path(series_id, series_title)
+                cover_path = self.get_cover_image_path(series_title)
                 if cover_path and os.path.exists(cover_path):
-                    ext = os.path.splitext(cover_path)[1]
-                    zf.write(cover_path, arcname=f"000-cover{ext}")
+                    zf.write(cover_path, arcname=build_cover_archive_name(cover_path))
+
+                if self.config.comicinfo and series_metadata:
+                    zf.writestr(
+                        "ComicInfo.xml",
+                        self.build_comicinfo_for_chapter(series_metadata, chapter_num, chapter_type),
+                    )
 
                 # Add chapter images
                 for img_file in image_files:
@@ -314,10 +355,15 @@ class WeebCentralDownloader:
             )
             with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as zf:
                 # Add cover as 000-cover.jpg (sorts first)
-                cover_path = self.get_cover_image_path(series_id, series_title)
+                cover_path = self.get_cover_image_path(series_title)
                 if cover_path and os.path.exists(cover_path):
-                    ext = os.path.splitext(cover_path)[1]
-                    zf.write(cover_path, arcname=f"000-cover{ext}")
+                    zf.write(cover_path, arcname=build_cover_archive_name(cover_path))
+
+                if self.config.comicinfo and series_metadata:
+                    zf.writestr(
+                        "ComicInfo.xml",
+                        self.build_comicinfo_for_chapter(series_metadata, chapter_num, chapter_type),
+                    )
 
                 # Add chapter images
                 for img_file in image_files:
@@ -333,6 +379,7 @@ class WeebCentralDownloader:
         series_id: str,
         series_title: str,
         is_fresh: bool,
+        series_metadata: Optional[SeriesMetadata] = None,
     ):
         out_dir = os.path.join(self.output_dir, series_title)
         chap_counter = 0
@@ -362,7 +409,14 @@ class WeebCentralDownloader:
                     chap_id, chap_num, temp_dir, chapter_dir_name
                 )
                 if chapter_dir:
-                    self.archive_chapter(chapter_dir, series_id, series_title, chap_num, ct)
+                    self.archive_chapter(
+                        chapter_dir,
+                        series_id,
+                        series_title,
+                        chap_num,
+                        ct,
+                        series_metadata=series_metadata,
+                    )
             finally:
                 if os.path.exists(temp_dir):
                     shutil.rmtree(temp_dir)
@@ -413,6 +467,10 @@ class WeebCentralDownloader:
             print(f"No chapters found for '{title or series_id}'.")
             return
 
+        series_metadata = None
+        if self.config.comicinfo:
+            series_metadata = self.get_series_metadata(series_id, series_title)
+
         self.download_cover_image_and_convert(series_id, series_title)
 
         out_dir = os.path.join(self.output_dir, series_title)
@@ -436,7 +494,14 @@ class WeebCentralDownloader:
                 )
 
         logger.debug(f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})")
-        self.download_chapters(chapters, chapters_to_download, series_id, series_title, is_fresh)
+        self.download_chapters(
+            chapters,
+            chapters_to_download,
+            series_id,
+            series_title,
+            is_fresh,
+            series_metadata=series_metadata,
+        )
 
     def download_cover_image_and_convert(self, series_id: str, series_title: str):
         cover_path = self.download_cover_image(series_id, series_title)
