@@ -7,8 +7,8 @@ Features:
 - Rename folders to English titles from WeebCentral
 - Merge chapters from duplicate folders
 
-Duplicates are identified by finding the series ID cover image (*.jpg/*.webp)
-which contains the series ID in the filename.
+Duplicates are identified by finding the series ID cover image saved by the
+downloader (``<series_id>-cover.jpg`` or ``<series_id>-cover.webp``).
 """
 
 import os
@@ -17,9 +17,17 @@ import shutil
 import re
 import html
 import argparse
-from pathlib import Path
 from collections import defaultdict
-from loguru import logger
+
+from src.utils import (
+    choose_series_title,
+    extract_series_id_from_cover_filename,
+    find_cover_image_path,
+    legacy_cover_target_filename,
+    is_legacy_cover_filename,
+    migrate_legacy_cover_filenames,
+)
+from src.logging_utils import logger
 
 try:
     import cloudscraper
@@ -28,11 +36,10 @@ except ImportError:
 
 
 def find_series_id(folder_path):
-    """Extract series ID from cover image filename in the folder."""
-    for file in os.listdir(folder_path):
-        if file.endswith(('.jpg', '.webp')) and len(file.split('.')[0]) == 26:
-            # Series IDs are 26 characters long (e.g., 01J76XYHEWTDVAMWPMEQS89C3Y)
-            return file.split('.')[0]
+    """Extract series ID from the downloaded cover image filename in the folder."""
+    cover_path = find_cover_image_path(folder_path)
+    if cover_path:
+        return extract_series_id_from_cover_filename(os.path.basename(cover_path))
     return None
 
 
@@ -57,33 +64,25 @@ def get_english_title(series_id):
         url = f"https://weebcentral.com/series/{series_id}"
         resp = scraper.get(url, timeout=10)
 
-        # Extract H1 title
         h1_match = re.search(r'<h1[^>]*>([^<]+)</h1>', resp.text)
         if not h1_match:
             return None
 
         h1_title = html.unescape(h1_match.group(1).strip())
+        assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
+        assoc_match = re.search(assoc_pattern, resp.text, re.DOTALL | re.IGNORECASE)
 
-        # Check if title looks like romaji (has Japanese particles)
-        has_romaji = re.search(r'\b(de|wo|ga|no|ni|wa)\b', h1_title, re.IGNORECASE)
+        associated_names = []
+        if assoc_match:
+            ul_content = assoc_match.group(1)
+            associated_names = [
+                html.unescape(item.strip())
+                for item in re.findall(r'<li>([^<]+)</li>', ul_content)
+                if item.strip()
+            ]
 
-        if has_romaji:
-            # Try to get Associated Name(s) for English title
-            assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
-            assoc_match = re.search(assoc_pattern, resp.text, re.DOTALL | re.IGNORECASE)
-
-            if assoc_match:
-                ul_content = assoc_match.group(1)
-                li_items = re.findall(r'<li>([^<]+)</li>', ul_content)
-                if li_items:
-                    # Use first associated name (usually English)
-                    title = html.unescape(li_items[0].strip())
-                    title = re.sub(r'[<>:"/\\|?*]', '', title)
-                    title = title.replace(' ', '-')
-                    return title
-
-        # Either H1 is English, or no Associated Names found - use H1
-        title = re.sub(r'[<>:"/\\|?*]', '', h1_title)
+        title = choose_series_title(h1_title, associated_names, prefer_english_title=True)
+        title = re.sub(r'[<>:"/\\|?*]', '', title)
         title = title.replace(' ', '-')
         return title
 
@@ -256,12 +255,8 @@ def add_covers_to_archives_command(manga_dir, dry_run=False, verbose=False):
         if not os.path.isdir(folder_path):
             continue
 
-        # Find cover image
-        cover_path = None
-        for file in os.listdir(folder_path):
-            if file.endswith(('.jpg', '.webp')) and len(file.split('.')[0]) == 26:
-                cover_path = os.path.join(folder_path, file)
-                break
+        # Find cover image saved by the downloader
+        cover_path = find_cover_image_path(folder_path)
 
         if not cover_path:
             logger.debug(f"Skipping '{folder_name}': No cover image found")
@@ -396,6 +391,43 @@ def rename_to_english_command(manga_dir, dry_run=False, verbose=False):
         logger.info("\nThis was a DRY RUN. Run without --dry-run to actually rename folders.")
 
 
+def migrate_covers_command(manga_dir, dry_run=False, verbose=False):
+    """Migrate legacy cover filenames to the explicit naming scheme."""
+    logger.info(f"Scanning manga folders in: {manga_dir}")
+    logger.info(f"Mode: {'DRY RUN (no changes will be made)' if dry_run else 'LIVE (will rename covers)'}\n")
+
+    migrated_count = 0
+    folder_count = 0
+
+    for folder_name in sorted(os.listdir(manga_dir)):
+        folder_path = os.path.join(manga_dir, folder_name)
+
+        if not os.path.isdir(folder_path):
+            continue
+
+        folder_count += 1
+        legacy_files = [f for f in os.listdir(folder_path) if is_legacy_cover_filename(f)]
+        if not legacy_files:
+            logger.debug(f"Skipping '{folder_name}': No legacy cover filenames found")
+            continue
+
+        if dry_run:
+            for filename in legacy_files:
+                target = legacy_cover_target_filename(filename)
+                logger.info(f"  Would migrate: '{filename}' -> '{target}'")
+            migrated_count += len(legacy_files)
+            continue
+
+        count = migrate_legacy_cover_filenames(folder_path, dry_run=False)
+        migrated_count += count
+        logger.success(f"Migrated {count} cover file(s) in '{folder_name}'")
+
+    logger.info(f"\nSummary: {migrated_count} legacy cover file(s) {'would be' if dry_run else 'were'} migrated across {folder_count} folder(s).")
+
+    if dry_run:
+        logger.info("\nThis was a DRY RUN. Run without --dry-run to actually migrate covers.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Manga utilities for managing downloaded manga folders",
@@ -438,6 +470,12 @@ Examples:
     covers_parser.add_argument('directory', help='Manga directory path')
     covers_parser.add_argument('--dry-run', action='store_true', help='Preview changes without making them')
     covers_parser.add_argument('-v', '--verbose', action='store_true', help='Show detailed output')
+
+    # Migrate legacy cover filenames command
+    migrate_parser = subparsers.add_parser('migrate-covers', help='Rename legacy cover files to the explicit naming scheme')
+    migrate_parser.add_argument('directory', help='Manga directory path')
+    migrate_parser.add_argument('--dry-run', action='store_true', help='Preview changes without making them')
+    migrate_parser.add_argument('-v', '--verbose', action='store_true', help='Show detailed output')
 
     args = parser.parse_args()
 
@@ -483,6 +521,8 @@ Examples:
         rename_to_english_command(args.directory, args.dry_run, verbose)
     elif args.command == 'add-covers':
         add_covers_to_archives_command(args.directory, args.dry_run, verbose)
+    elif args.command == 'migrate-covers':
+        migrate_covers_command(args.directory, args.dry_run, verbose)
 
 
 if __name__ == "__main__":

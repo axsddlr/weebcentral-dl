@@ -10,7 +10,7 @@ Available as both a **CLI tool** for manual downloads and a **Docker container**
 
 - **Manga Search**: Find manga by title or use a direct series ID
 - **Chapter Selection**: Download all chapters, specific chapters, or only new chapters since your last download
-- **High-Speed Downloads**: Utilizes parallel image downloading (99 workers) to significantly speed up the process
+- **High-Speed Downloads**: Utilizes bounded parallel image downloading to significantly speed up the process
 - **Sequential Mode**: Option to download images one by one for sites that are sensitive to high traffic
 - **Flexible Archiving**: Save chapters as `.cbz` (default) or `.zip` archives
 - **Bulk Processing**: Download multiple series at once from a text file
@@ -488,13 +488,14 @@ manga_downloads/
 
 ## Manga Management Utilities
 
-The `manga_utils.py` script provides tools for managing your downloaded manga collection, including removing duplicates and renaming folders to English titles.
+The `manga_utils.py` script provides tools for managing your downloaded manga collection, including removing duplicates, renaming folders to English titles, and migrating older cover filenames to the current explicit format.
 
 ### Features
 
 - **Remove Duplicates**: Detect and merge duplicate manga folders based on series ID
 - **English Renaming**: Convert folder names from romaji to English titles
 - **Add Cover Images**: Embed cover images into existing archives as the first page for manga readers
+- **Migrate Legacy Covers**: Rename old 26-character cover files to the explicit naming scheme
 - **Smart Prioritization**: Keeps the folder with longer names (newer format) and more chapters
 - **Dry Run Mode**: Preview all changes before applying them
 
@@ -524,12 +525,16 @@ python manga_utils.py add-covers Y:\manga\main --dry-run
 
 # Add cover images to existing archives (live)
 python manga_utils.py add-covers Y:\manga\main -v
+
+# Migrate legacy cover filenames
+python manga_utils.py migrate-covers Y:\manga\main --dry-run
 ```
 
 ### How It Works
 
 **Duplicate Detection:**
-- Identifies duplicates by finding the series ID in cover image filenames (26-character `.jpg`/`.webp` files)
+- Identifies duplicates by finding the series ID in cover image filenames (`<series_id>-cover.jpg` / `<series_id>-cover.webp`)
+- Automatically migrates older 26-character cover filenames to the new explicit naming scheme
 - Prioritizes folders based on:
   - Longer folder names (newer code format with full titles)
   - Newer modification dates
@@ -546,11 +551,16 @@ python manga_utils.py add-covers Y:\manga\main -v
   - `Zombie-Sekai-de-Harem-wo-Tsukurou` → `Lets-Build-a-Harem-in-a-Zombie-World!`
 
 **Cover Image Embedding:**
-- Finds the series cover image (26-character series ID filename: `.jpg` or `.webp`)
+- Finds the series cover image using the explicit `<series_id>-cover.<ext>` naming convention
+- Migrates legacy 26-character cover filenames to the new format on first access
 - Opens each CBZ/ZIP archive and adds the cover as `000-cover.jpg` (first file)
 - Manga readers (Komga, Kavita, Tachiyomi, etc.) automatically use the first page as the cover thumbnail
 - Skips archives that already have a cover embedded
 - Works with both `.cbz` and `.zip` formats
+
+**Cover Migration:**
+- `manga_utils.py migrate-covers` renames old 26-character cover files in place
+- Use `--dry-run` first to preview changes before updating your library
 
 **Important:** Always use `--dry-run` first to preview changes before making any modifications!
 
@@ -579,7 +589,7 @@ weebcentral-dl/
 
 manga_downloads/              # Output directory (created automatically)
 └── [manga-title]/
-    ├── [series-id].jpg       # Cover image
+    ├── [series-id]-cover.jpg # Cover image
     └── *.cbz / *.zip         # Chapter archives
 ```
 

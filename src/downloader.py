@@ -11,14 +11,21 @@ from urllib.parse import quote_plus
 import cloudscraper
 from typing import List, Optional, Tuple, Set
 from PIL import Image
-from loguru import logger
+from src.logging_utils import logger
 
-from src.utils import sanitize_title, get_vol_and_chapter_names, has_images
+from src.utils import (
+    build_cover_filename,
+    choose_series_title,
+    find_cover_image_path,
+    get_vol_and_chapter_names,
+    has_images,
+    sanitize_title,
+)
 from src.config import DownloaderConfig
 
 # --- Constants ---
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
-PARALLEL_DOWNLOAD = 99
+PARALLEL_DOWNLOAD = 8
 WEEBCENTRAL_URL = "https://weebcentral.com"
 
 
@@ -113,87 +120,40 @@ class WeebCentralDownloader:
         return chapters
 
     def get_series_title_by_id(self, series_id: str) -> str:
-        """Get series title from series page.
-
-        If config.use_english_title is True, tries to get English title by:
-        1. Checking if H1 title is English (no Japanese romaji particles)
-        2. Falling back to Associated Name(s) if H1 is romaji
-        3. Using H1 as last resort
-        """
+        """Get the display title from the series page."""
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         try:
             resp = self.scraper.get(url)
 
-            # Extract H1 title
             m = re.search(r"<h1[^>]*>([^<]+)</h1>", resp.text)
             if m:
                 title = html.unescape(m.group(1).strip())
+                assoc_match = re.search(
+                    r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>',
+                    resp.text,
+                    re.DOTALL | re.IGNORECASE,
+                )
+                associated_names = []
+                if assoc_match:
+                    ul_content = assoc_match.group(1)
+                    associated_names = [
+                        html.unescape(item.strip())
+                        for item in re.findall(r'<li>([^<]+)</li>', ul_content)
+                        if item.strip()
+                    ]
 
-                # If --en flag is used, try to get English title
-                if self.config.use_english_title:
-                    # Check if title looks like romaji (has Japanese particles)
-                    if re.search(r'\b(de|wo|ga|no|ni|wa)\b', title, re.IGNORECASE):
-                        # Try to get Associated Name(s) instead
-                        assoc_pattern = r'Associated Name\(s\).*?<ul[^>]*>(.*?)</ul>'
-                        assoc_match = re.search(assoc_pattern, resp.text, re.DOTALL | re.IGNORECASE)
-
-                        if assoc_match:
-                            ul_content = assoc_match.group(1)
-                            li_items = re.findall(r'<li>([^<]+)</li>', ul_content)
-                            if li_items:
-                                title = html.unescape(li_items[0].strip())
-                                logger.debug(f"Using Associated Name: {title}")
+                title = choose_series_title(
+                    title,
+                    associated_names,
+                    prefer_english_title=self.config.use_english_title,
+                )
+                if self.config.use_english_title and associated_names and title != html.unescape(m.group(1).strip()):
+                    logger.debug(f"Using Associated Name: {title}")
 
                 return sanitize_title(title)
         except Exception as e:
             logger.warning(f"Could not fetch manga title for series_id {series_id}: {e}")
         return series_id
-
-    def get_series_metadata(self, series_id: str) -> dict:
-        """Extract metadata for series (title, description, authors, tags).
-
-        Useful for future ComicInfo.xml generation or display.
-        """
-        url = f"{WEEBCENTRAL_URL}/series/{series_id}"
-        metadata = {
-            "title": "",
-            "description": "",
-            "authors": [],
-            "tags": [],
-        }
-
-        try:
-            resp = self.scraper.get(url)
-            text = resp.text
-
-            # Extract title
-            title_match = re.search(r"<h1[^>]*>([^<]+)</h1>", text)
-            if title_match:
-                metadata["title"] = html.unescape(title_match.group(1).strip())
-
-            # Extract description (look for "Description" heading followed by paragraph)
-            desc_match = re.search(r'<strong[^>]*>[^<]*Description[^<]*</strong>\s*\+?\s*<p[^>]*>([^<]+)</p>', text, re.IGNORECASE)
-            if desc_match:
-                metadata["description"] = html.unescape(desc_match.group(1).strip())
-
-            # Extract authors (links after "Author" heading)
-            author_section = re.search(r'<strong[^>]*>[^<]*Author[^<]*</strong>(.*?)(?=<strong|$)', text, re.IGNORECASE | re.DOTALL)
-            if author_section:
-                author_links = re.findall(r'<a[^>]*>([^<]+)</a>', author_section.group(1))
-                metadata["authors"] = [html.unescape(a.strip()) for a in author_links]
-
-            # Extract tags (links after "Tags" heading)
-            tags_section = re.search(r'<strong[^>]*>[^<]*Tags[^<]*</strong>(.*?)(?=<strong|$)', text, re.IGNORECASE | re.DOTALL)
-            if tags_section:
-                tag_links = re.findall(r'<a[^>]*>([^<]+)</a>', tags_section.group(1))
-                metadata["tags"] = [html.unescape(t.strip()) for t in tag_links]
-
-            logger.debug(f"Metadata - Title: {metadata['title']}, Authors: {len(metadata['authors'])}, Tags: {len(metadata['tags'])}")
-
-        except Exception as e:
-            logger.warning(f"Could not extract metadata for series_id {series_id}: {e}")
-
-        return metadata
 
     def get_latest_downloaded_chapter(self, series_title: str) -> Optional[float]:
         out_dir = os.path.join(self.output_dir, series_title)
@@ -229,7 +189,7 @@ class WeebCentralDownloader:
                 return True
         return False
 
-    def download_image(self, img_url: str, dest_folder: str, referer: str):
+    def download_image(self, img_url: str, dest_folder: str, referer: str, filename: Optional[str] = None):
         retry_count = 0
         while retry_count < self.config.max_retries:
             try:
@@ -238,7 +198,8 @@ class WeebCentralDownloader:
                     img_url, headers=headers, stream=True, timeout=15
                 )
                 resp.raise_for_status()
-                filename = os.path.basename(img_url.split("?")[0])
+                if filename is None:
+                    filename = os.path.basename(img_url.split("?")[0])
                 out_path = os.path.join(dest_folder, filename)
                 with open(out_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
@@ -303,19 +264,16 @@ class WeebCentralDownloader:
                 concurrent.futures.wait(futures)
         return chapter_dir
 
-    def get_cover_image_path(self, series_title: str) -> Optional[str]:
+    def get_cover_image_path(self, series_id: str, series_title: str) -> Optional[str]:
         """Find the cover image (jpg or webp) for the series."""
         series_dir = os.path.join(self.output_dir, series_title)
-        if not os.path.exists(series_dir):
-            return None
-
-        for file in os.listdir(series_dir):
-            if file.endswith(('.jpg', '.webp')) and len(file.split('.')[0]) == 26:
-                return os.path.join(series_dir, file)
+        cover_path = find_cover_image_path(series_dir)
+        if cover_path and os.path.basename(cover_path).startswith(f"{series_id}-cover"):
+            return cover_path
         return None
 
     def archive_chapter(
-        self, chapter_dir: str, series_title: str, chapter_num: str, chapter_type: str
+        self, chapter_dir: str, series_id: str, series_title: str, chapter_num: str, chapter_type: str
     ):
         out_dir = os.path.join(self.output_dir, series_title)
         os.makedirs(out_dir, exist_ok=True)
@@ -339,7 +297,7 @@ class WeebCentralDownloader:
             # Create archive with cover as first page
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 # Add cover as 000-cover.jpg (sorts first)
-                cover_path = self.get_cover_image_path(series_title)
+                cover_path = self.get_cover_image_path(series_id, series_title)
                 if cover_path and os.path.exists(cover_path):
                     ext = os.path.splitext(cover_path)[1]
                     zf.write(cover_path, arcname=f"000-cover{ext}")
@@ -356,7 +314,7 @@ class WeebCentralDownloader:
             )
             with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as zf:
                 # Add cover as 000-cover.jpg (sorts first)
-                cover_path = self.get_cover_image_path(series_title)
+                cover_path = self.get_cover_image_path(series_id, series_title)
                 if cover_path and os.path.exists(cover_path):
                     ext = os.path.splitext(cover_path)[1]
                     zf.write(cover_path, arcname=f"000-cover{ext}")
@@ -372,6 +330,7 @@ class WeebCentralDownloader:
         self,
         chapters: List[Tuple[str, str, str]],
         chapters_to_download: Optional[Set[str]],
+        series_id: str,
         series_title: str,
         is_fresh: bool,
     ):
@@ -403,7 +362,7 @@ class WeebCentralDownloader:
                     chap_id, chap_num, temp_dir, chapter_dir_name
                 )
                 if chapter_dir:
-                    self.archive_chapter(chapter_dir, series_title, chap_num, ct)
+                    self.archive_chapter(chapter_dir, series_id, series_title, chap_num, ct)
             finally:
                 if os.path.exists(temp_dir):
                     shutil.rmtree(temp_dir)
@@ -477,7 +436,7 @@ class WeebCentralDownloader:
                 )
 
         logger.debug(f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} (zip mode: {self.config.zip})")
-        self.download_chapters(chapters, chapters_to_download, series_title, is_fresh)
+        self.download_chapters(chapters, chapters_to_download, series_id, series_title, is_fresh)
 
     def download_cover_image_and_convert(self, series_id: str, series_title: str):
         cover_path = self.download_cover_image(series_id, series_title)
@@ -493,7 +452,7 @@ class WeebCentralDownloader:
 
     def download_cover_image(self, series_id: str, series_title: str):
         out_dir = os.path.join(self.output_dir, series_title)
-        if os.path.exists(out_dir) and any(f.lower().endswith(".jpg") for f in os.listdir(out_dir)):
+        if find_cover_image_path(out_dir):
             logger.debug(f"Cover image already exists for {series_title}, skipping download")
             return None
 
@@ -504,7 +463,9 @@ class WeebCentralDownloader:
             if m:
                 cover_url = m.group(1)
                 os.makedirs(out_dir, exist_ok=True)
-                return self.download_image(cover_url, out_dir, url)
+                cover_ext = os.path.splitext(cover_url.split("?")[0])[1] or ".jpg"
+                cover_name = build_cover_filename(series_id, cover_ext)
+                return self.download_image(cover_url, out_dir, url, filename=cover_name)
         except Exception as e:
             logger.warning(f"Could not download cover image for series_id {series_id}: {e}")
         return None

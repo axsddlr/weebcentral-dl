@@ -3,10 +3,10 @@
 import argparse
 import sys
 from typing import Optional, Set
-from loguru import logger
 
 from src.downloader import WeebCentralDownloader
 from src.config import load_config
+from src.logging_utils import logger
 
 
 def parse_chapter_arg(chapter_arg: Optional[str]) -> Optional[Set[str]]:
