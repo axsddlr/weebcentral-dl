@@ -67,6 +67,12 @@ class DownloadOrchestrator:
             logger.warning(f"No chapters found for '{title or series_id}'.")
             return
 
+        chapters_to_download = self._determine_chapters_to_download(
+            chapters, series_title, chapters_to_download
+        )
+        if chapters_to_download is not None and not chapters_to_download:
+            return
+
         self.cover_manager.download_and_convert(series_id, series_title)
 
         comicinfo_metadata = None
@@ -75,12 +81,6 @@ class DownloadOrchestrator:
 
         out_dir = os.path.join(self.output_dir, series_title)
         is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
-
-        chapters_to_download = self._determine_chapters_to_download(
-            chapters, series_title, chapters_to_download
-        )
-        if chapters_to_download is not None and not chapters_to_download:
-            return
 
         logger.debug(
             f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} "

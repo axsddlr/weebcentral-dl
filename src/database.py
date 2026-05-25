@@ -42,43 +42,61 @@ def add_tracked(series_id: str, title: str) -> bool:
 
 
 def remove_tracked(series_id: str) -> bool:
-    with _connect() as conn:
-        cursor = conn.execute("DELETE FROM tracked_manga WHERE series_id = ?", (series_id.upper(),))
-        conn.commit()
-        return cursor.rowcount > 0
+    try:
+        with _connect() as conn:
+            cursor = conn.execute("DELETE FROM tracked_manga WHERE series_id = ?", (series_id.upper(),))
+            conn.commit()
+            return cursor.rowcount > 0
+    except sqlite3.Error:
+        return False
 
 
 def get_all_tracked() -> list[dict]:
-    with _connect() as conn:
-        rows = conn.execute("SELECT * FROM tracked_manga ORDER BY added_at DESC").fetchall()
-    return [dict(r) for r in rows]
+    try:
+        with _connect() as conn:
+            rows = conn.execute("SELECT * FROM tracked_manga ORDER BY added_at DESC").fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.Error:
+        return []
 
 
 def get_tracked(series_id: str) -> Optional[dict]:
-    with _connect() as conn:
-        row = conn.execute("SELECT * FROM tracked_manga WHERE series_id = ?", (series_id.upper(),)).fetchone()
-    return dict(row) if row else None
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT * FROM tracked_manga WHERE series_id = ?", (series_id.upper(),)).fetchone()
+        return dict(row) if row else None
+    except sqlite3.Error:
+        return None
 
 
 def is_tracked(series_id: str) -> bool:
-    with _connect() as conn:
-        row = conn.execute("SELECT 1 FROM tracked_manga WHERE series_id = ?", (series_id.upper(),)).fetchone()
-    return row is not None
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT 1 FROM tracked_manga WHERE series_id = ?", (series_id.upper(),)).fetchone()
+        return row is not None
+    except sqlite3.Error:
+        return False
 
 
 def update_last_checked(series_id: str):
-    with _connect() as conn:
-        conn.execute(
-            "UPDATE tracked_manga SET last_checked_at = ? WHERE series_id = ?",
-            (datetime.utcnow().isoformat(), series_id.upper()),
-        )
-        conn.commit()
+    try:
+        with _connect() as conn:
+            conn.execute(
+                "UPDATE tracked_manga SET last_checked_at = ? WHERE series_id = ?",
+                (datetime.utcnow().isoformat(), series_id.upper()),
+            )
+            conn.commit()
+    except sqlite3.Error:
+        pass
 
 
 def count_tracked() -> int:
-    with _connect() as conn:
-        row = conn.execute("SELECT COUNT(*) as cnt FROM tracked_manga").fetchone()
-    return row["cnt"]
+    try:
+        with _connect() as conn:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM tracked_manga").fetchone()
+        return row["cnt"]
+    except sqlite3.Error:
+        return 0
 
 
 def import_from_file(filepath: str) -> tuple[int, int]:

@@ -28,6 +28,9 @@ class ImageDownloader:
                 )
                 resp.raise_for_status()
                 filename = os.path.basename(img_url.split("?")[0])
+                if not filename:
+                    logger.error(f"Empty filename from URL: {img_url}")
+                    return None
                 out_path = os.path.join(dest_folder, filename)
                 with open(out_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
@@ -35,6 +38,8 @@ class ImageDownloader:
                 logger.debug(f"Downloaded: {img_url}")
                 return out_path
             except Exception as e:
+                if isinstance(e, KeyboardInterrupt):
+                    raise
                 logger.debug(f"Error downloading {img_url}: {e}")
                 error_text = str(e).lower()
                 if any(err in error_text

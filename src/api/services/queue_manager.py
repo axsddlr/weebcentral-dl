@@ -149,11 +149,11 @@ class QueueManager:
         consecutive_failures = 0
         while True:
             try:
+                consecutive_failures = 0
                 if self.is_running:
                     pending = next((t for t in self.tasks if t.status == "pending"), None)
                     if pending:
                         await self._process_task(pending)
-                        consecutive_failures = 0
                     else:
                         await asyncio.sleep(1)
                 else:

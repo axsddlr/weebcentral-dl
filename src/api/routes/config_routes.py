@@ -1,4 +1,5 @@
 """Configuration routes"""
+import os
 from fastapi import APIRouter, Request
 
 from src.api.models import ConfigUpdateRequest
@@ -72,5 +73,12 @@ async def reset_config(request: Request):
     request.app.state.config = default
     request.app.state.downloader.config = default
     request.app.state.queue_manager.config = default
+    request.app.state.downloader.image_downloader.max_retries = default.max_retries
+    request.app.state.downloader.image_downloader.max_sleep = default.max_sleep
+    request.app.state.downloader.image_downloader.parallel_workers = default.parallel_workers
+    request.app.state.downloader.image_downloader.sequence = default.sequence
+    request.app.state.downloader.archiver.use_zip = default.zip
+    request.app.state.downloader.cover_manager.output_dir = os.path.abspath(default.output_dir)
+    request.app.state.downloader.archiver.output_dir = os.path.abspath(default.output_dir)
     save_config(default, request.app.state.config_path)
     return config_to_response(default)

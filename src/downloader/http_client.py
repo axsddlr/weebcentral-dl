@@ -32,6 +32,8 @@ class HttpClient:
                 resp.raise_for_status()
                 return resp
             except Exception as e:
+                if isinstance(e, KeyboardInterrupt):
+                    raise
                 last_exc = e
                 if attempt < MAX_RETRIES:
                     wait = RETRY_BACKOFF * (2 ** (attempt - 1))
