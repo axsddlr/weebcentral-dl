@@ -54,6 +54,15 @@ class WeebCentralDownloader:
         self.http.output_dir = value
 
     @property
+    def use_english_title(self):
+        return self.title_resolver.use_english_title
+
+    @use_english_title.setter
+    def use_english_title(self, value: bool):
+        self.title_resolver.use_english_title = value
+        self.series_resolver.use_english_title = value
+
+    @property
     def scraper(self):
         return self.http.scraper
 

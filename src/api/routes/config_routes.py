@@ -35,31 +35,39 @@ async def get_config(request: Request):
 
 @router.put("/config")
 async def update_config(request: Request, body: ConfigUpdateRequest):
-    """Update configuration and save to config file."""
+    """Update configuration, save, and propagate to running components."""
     config = request.app.state.config
+    downloader = request.app.state.downloader
 
     if body.outputDir is not None:
         config.output_dir = body.outputDir
+        downloader.output_dir = os.path.abspath(body.outputDir)
     if body.latest is not None:
         config.latest = body.latest
     if body.sequence is not None:
         config.sequence = body.sequence
+        downloader.image_downloader.sequence = body.sequence
     if body.zip is not None:
         config.zip = body.zip
+        downloader.archiver.use_zip = body.zip
     if body.verbose is not None:
         config.verbose = body.verbose
     if body.useEnglishTitle is not None:
         config.use_english_title = body.useEnglishTitle
+        downloader.use_english_title = body.useEnglishTitle
     if body.comicinfo is not None:
         config.comicinfo = body.comicinfo
     if body.rlc is not None:
         config.rlc = body.rlc
     if body.maxSleep is not None:
         config.max_sleep = body.maxSleep
+        downloader.image_downloader.max_sleep = body.maxSleep
     if body.maxRetries is not None:
         config.max_retries = body.maxRetries
+        downloader.image_downloader.max_retries = body.maxRetries
     if body.parallelWorkers is not None:
         config.parallel_workers = body.parallelWorkers
+        downloader.image_downloader.parallel_workers = body.parallelWorkers
     if body.libraryPaths is not None:
         config.library_paths = body.libraryPaths
     if body.checkInterval is not None:
