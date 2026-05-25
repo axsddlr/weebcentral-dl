@@ -7,6 +7,8 @@ services:
     container_name: weebcentral-dl-ui
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     volumes:
       - ./config.toml:/app/config.toml
       # manga_downloads is BOTH the download destination AND the library source.
@@ -39,6 +41,8 @@ services:
       manga-downloader:
         condition: service_healthy
     command: ["python", "-m", "src.watcher"]
+    env_file:
+      - .env
     volumes:
       - ./manga_list.txt:/app/manga_list.txt
       - ./config.toml:/app/config.toml
