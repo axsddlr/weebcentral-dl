@@ -16,14 +16,16 @@ WORKDIR /app
 LABEL org.opencontainers.image.description="Web UI and CLI for downloading manga from WeebCentral as CBZ/ZIP archives"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
 
 # Install uv for fast, reproducible dependency installs
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable --system
+    uv sync --frozen --no-dev --no-editable
 
 # Copy backend source
 COPY src/ ./src/
