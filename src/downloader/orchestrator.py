@@ -113,8 +113,8 @@ class DownloadOrchestrator:
             ct = "" if chap_type in ["Chapter", "#"] else chap_type
             _, chapter_dir_name = get_vol_and_chapter_names(chap_num)
 
-            if self.config.zip and self.chapter_tracker.chapter_already_downloaded(chap_num, out_dir):
-                logger.info(f"Skipping already-downloaded chapter {chap_num} (zip found)")
+            if self.chapter_tracker.chapter_already_downloaded(chap_num, out_dir, series_title):
+                logger.info(f"Skipping already-downloaded chapter {chap_num}")
                 continue
 
             logger.info(f"Downloading chapter {chap_num}")

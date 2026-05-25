@@ -30,14 +30,24 @@ class ChapterTracker:
                         continue
         return max(chapter_nums) if chapter_nums else None
 
-    def chapter_already_downloaded(self, chap_num: str, out_dir: str) -> bool:
+    def chapter_already_downloaded(self, chap_num: str, out_dir: str, series_title: str = "") -> bool:
         if not os.path.exists(out_dir):
             return False
         base = int(float(chap_num))
+        files = os.listdir(out_dir)
+        dec = None
         if "." in str(chap_num):
             dec = str(chap_num).split(".")[-1]
-            if dec != "0":
-                patt = re.compile(rf"vol_0*{base}-0*{dec}\.zip$")
-                return any(patt.fullmatch(f) for f in os.listdir(out_dir))
-        patt = re.compile(rf"vol_0*{base}\.zip$")
-        return any(patt.fullmatch(f) for f in os.listdir(out_dir))
+        # ZIP: vol_NNN.zip or vol_N-N.zip
+        if dec and dec != "0":
+            zip_patt = re.compile(rf"vol_0*{base}-0*{dec}\.zip$")
+        else:
+            zip_patt = re.compile(rf"vol_0*{base}\.zip$")
+        if any(zip_patt.fullmatch(f) for f in files):
+            return True
+        # CBZ: series_title-N.cbz or series_title-N-Type.cbz
+        if series_title:
+            cbz_patt = re.compile(rf"{re.escape(series_title)}-{base}(?:\.\d+)?.*\.cbz$")
+            if any(cbz_patt.fullmatch(f) for f in files):
+                return True
+        return False
