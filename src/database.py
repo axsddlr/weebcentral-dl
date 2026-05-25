@@ -32,6 +32,16 @@ def _init_db(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE tracked_manga ADD COLUMN cover_url TEXT")
     except sqlite3.OperationalError:
         pass
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reading_progress (
+            series_id TEXT NOT NULL,
+            chapter_path TEXT NOT NULL,
+            page INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (series_id, chapter_path)
+        )
+    """)
     conn.commit()
 
 
@@ -123,6 +133,46 @@ def get_tracked_without_covers() -> list[dict]:
         return [dict(r) for r in rows]
     except sqlite3.Error:
         return []
+
+
+def save_reading_progress(series_id: str, chapter_path: str, page: int) -> bool:
+    try:
+        with _connect() as conn:
+            conn.execute("""
+                INSERT INTO reading_progress (series_id, chapter_path, page, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(series_id, chapter_path) DO UPDATE SET
+                    page = excluded.page,
+                    updated_at = excluded.updated_at
+            """, (series_id, chapter_path, page, datetime.utcnow().isoformat()))
+            conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def get_reading_progress(series_id: str, chapter_path: str) -> int:
+    try:
+        with _connect() as conn:
+            row = conn.execute(
+                "SELECT page FROM reading_progress WHERE series_id = ? AND chapter_path = ?",
+                (series_id, chapter_path),
+            ).fetchone()
+        return row["page"] if row else 0
+    except sqlite3.Error:
+        return 0
+
+
+def get_all_reading_progress(series_id: str) -> dict[str, int]:
+    try:
+        with _connect() as conn:
+            rows = conn.execute(
+                "SELECT chapter_path, page FROM reading_progress WHERE series_id = ?",
+                (series_id,),
+            ).fetchall()
+        return {r["chapter_path"]: r["page"] for r in rows}
+    except sqlite3.Error:
+        return {}
 
 
 def import_from_file(filepath: str) -> tuple[int, int]:

@@ -58,14 +58,18 @@ export function Reader({ manga, chapter, onViewChange }: ReaderProps) {
 
   useEffect(() => {
     if (manga && chapter) {
-      // Fetch pages from the archive via API
       api.getPages(manga.path, chapter.path).then(data => {
-        // Generate URLs for each page
         const urls = data.pages.map((_, i) =>
           api.getPageUrl(manga.path, chapter.path, i)
         );
         setPageUrls(urls);
-        setCurrentPage(chapter.lastReadPage > 0 ? chapter.lastReadPage - 1 : 0);
+
+        api.getProgress(manga.path).then(p => {
+          const saved = p.progress[chapter.path];
+          setCurrentPage(saved > 0 ? saved - 1 : 0);
+        }).catch(() => {
+          setCurrentPage(chapter.lastReadPage > 0 ? chapter.lastReadPage - 1 : 0);
+        });
       }).catch(e => {
         toast.error('Failed to load pages');
         console.error(e);
@@ -93,13 +97,25 @@ export function Reader({ manga, chapter, onViewChange }: ReaderProps) {
     };
   }, []);
 
+  const saveRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (manga && chapter && pageUrls.length > 0) {
+      if (saveRef.current) clearTimeout(saveRef.current);
+      saveRef.current = setTimeout(() => {
+        api.saveProgress(manga.path, chapter.path, currentPage + 1).catch(() => {});
+      }, 1000);
+    }
+    return () => { if (saveRef.current) clearTimeout(saveRef.current); };
+  }, [currentPage, manga, chapter, pageUrls.length]);
+
   const handleNextPage = useCallback(() => {
     if (currentPage < pageUrls.length - 1) {
       setCurrentPage(prev => prev + 1);
     } else {
+      api.saveProgress(manga!.path, chapter!.path, currentPage + 1).catch(() => {});
       toast.success('Chapter completed!');
     }
-  }, [currentPage, pageUrls.length]);
+  }, [currentPage, pageUrls.length, manga, chapter]);
 
   const handlePrevPage = useCallback(() => {
     if (currentPage > 0) {

@@ -71,7 +71,7 @@ To also read manga collections you already have from other sources (not download
 
 ```bash
 mkdir library
-cp -r /path/to/kavita/manga library/kavita
+cp -r /path/to/your/manga library/manga
 ```
 
 Then add `/app/library` to `library_paths` in `config.toml`:

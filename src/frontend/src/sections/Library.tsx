@@ -37,7 +37,7 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
   const [library, setLibrary] = useState<api.LibrarySeries[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSeries, setSelectedSeries] = useState<api.LibrarySeries | null>(null);
-  const [chapters, setChapters] = useState<api.LibraryChapter[]>([]);
+  const [chapters, setChapters] = useState<(api.LibraryChapter & { read?: boolean; lastReadPage?: number })[]>([]);
   const [showChaptersDialog, setShowChaptersDialog] = useState(false);
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,8 +77,16 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
     setShowChaptersDialog(true);
     setLoadingChapters(true);
     try {
-      const chs = await api.getLibraryChapters(series.path);
-      setChapters(chs);
+      const [chs, progress] = await Promise.all([
+        api.getLibraryChapters(series.path),
+        api.getProgress(series.path),
+      ]);
+      const enriched = chs.map(ch => ({
+        ...ch,
+        read: (progress.progress[ch.path] || 0) > 0,
+        lastReadPage: progress.progress[ch.path] || 0,
+      }));
+      setChapters(enriched);
     } catch {
       toast.error('Failed to load chapters');
     } finally {
@@ -97,14 +105,15 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
         readChapters: 0,
         path: selectedSeries.path,
       };
+      const ch = chapter as api.LibraryChapter & { read?: boolean; lastReadPage?: number };
       const libraryChapter: LibraryChapter = {
-        id: chapter.id,
-        number: chapter.number,
-        filename: chapter.filename,
-        totalPages: chapter.totalPages,
-        read: false,
-        lastReadPage: 0,
-        path: chapter.path,
+        id: ch.id,
+        number: ch.number,
+        filename: ch.filename,
+        totalPages: ch.totalPages,
+        read: ch.read || false,
+        lastReadPage: ch.lastReadPage || 0,
+        path: ch.path,
         images: [],
       };
       onMangaSelect(libraryManga, libraryChapter);
@@ -297,9 +306,23 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
                     key={chapter.id}
                     className="flex items-center justify-between p-3 rounded hover:bg-muted transition-colors"
                   >
-                    <div>
-                      <p className="font-medium text-sm">Chapter {chapter.number}</p>
-                      <p className="text-xs text-muted-foreground">{chapter.totalPages} pages</p>
+                    <div className="flex items-center gap-3">
+                      {chapter.lastReadPage > 0 && (
+                        <div className="relative w-8 h-8 flex items-center justify-center">
+                          <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
+                            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/20" />
+                            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="3"
+                              strokeDasharray={`${2 * Math.PI * 14}`}
+                              strokeDashoffset={`${2 * Math.PI * 14 * (1 - Math.min(chapter.lastReadPage / chapter.totalPages, 1))}`}
+                              className="text-primary" strokeLinecap="round" />
+                          </svg>
+                          <span className="absolute text-[10px] font-medium">{Math.round((chapter.lastReadPage / chapter.totalPages) * 100)}%</span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">Chapter {chapter.number}</p>
+                        <p className="text-xs text-muted-foreground">{chapter.totalPages} pages</p>
+                      </div>
                     </div>
                     <Button
                       size="sm"

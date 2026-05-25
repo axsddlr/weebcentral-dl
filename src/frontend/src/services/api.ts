@@ -244,6 +244,21 @@ export function getCoverUrl(seriesDir: string): string {
   return `/api/reader/${encodeURIComponent(seriesDir)}/cover`;
 }
 
+export function getThumbnailUrl(seriesDir: string): string {
+  return `/api/reader/${encodeURIComponent(seriesDir)}/thumbnail`;
+}
+
+export async function getProgress(seriesDir: string): Promise<{ progress: Record<string, number> }> {
+  return request(`/api/reader/${encodeURIComponent(seriesDir)}/progress`);
+}
+
+export async function saveProgress(seriesDir: string, chapterPath: string, page: number): Promise<void> {
+  await request(`/api/reader/${encodeURIComponent(seriesDir)}/progress`, {
+    method: 'PUT',
+    body: JSON.stringify({ chapterPath, page }),
+  });
+}
+
 // --- Config ---
 
 export interface AppConfig {

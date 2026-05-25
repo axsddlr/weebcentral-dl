@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import Response
 
 from src.api.services.library_scanner import get_archive_pages, read_page_by_index, get_cover_path, read_cover_bytes
+from src.database import save_reading_progress, get_all_reading_progress
 from src.logging_utils import logger
 
 router = APIRouter(tags=["reader"])
@@ -68,3 +69,22 @@ async def get_cover(request: Request, series_dir: str):
     except Exception:
         logger.error(f"get_cover failed for series_dir={series_dir}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to serve cover")
+
+
+@router.get("/reader/{series_dir}/progress")
+async def get_progress(request: Request, series_dir: str):
+    """Get reading progress for all chapters in a series."""
+    progress = get_all_reading_progress(series_dir)
+    return {"progress": progress}
+
+
+@router.put("/reader/{series_dir}/progress")
+async def save_progress(request: Request, series_dir: str):
+    """Save reading progress for a chapter."""
+    body = await request.json()
+    chapter_path = body.get("chapterPath", "")
+    page = body.get("page", 0)
+    if not chapter_path:
+        raise HTTPException(status_code=400, detail="chapterPath is required")
+    save_reading_progress(series_dir, chapter_path, page)
+    return {"saved": True}
