@@ -22,7 +22,7 @@ def sanitize_title(title: str) -> str:
     if ascii_title.strip("-"):
         return re.sub(r"-+", "-", ascii_title).strip("-")
 
-    title = re.sub(r'[<>:"/\\|?*]', "", title)
+    title = re.sub(r'[<>:"/\\|?*%]', "", title)
     title = unicodedata.normalize("NFKC", title)
     return re.sub(r"-+", "-", title).strip("-")
 

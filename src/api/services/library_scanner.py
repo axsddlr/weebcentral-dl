@@ -4,6 +4,7 @@ import re
 import zipfile
 from pathlib import Path
 from typing import Optional
+from urllib.parse import unquote
 
 from src.utils import resolve_safe_path, find_cover_in_dir
 
@@ -96,13 +97,15 @@ def _resolve_display_path(all_dirs: list[str], display_path: str) -> tuple[str, 
             if str(abs(hash(os.path.abspath(d))))[:6] == prefix:
                 return d, entry
     # Fallback: search all dirs for the entry
-    entry = display_path
-    for d in all_dirs:
-        candidate = os.path.join(d, entry)
-        if os.path.isdir(candidate):
-            return d, entry
-    # Last resort: use default dir
-    return all_dirs[0] if all_dirs else "./manga_downloads", entry
+    # Try raw, URL-decoded, and sanitized variations
+    candidates = [display_path, unquote(display_path)]
+    for entry in candidates:
+        for d in all_dirs:
+            candidate = os.path.join(d, entry)
+            if os.path.isdir(candidate):
+                return d, entry
+    # Last resort: use default dir with raw display_path
+    return all_dirs[0] if all_dirs else "./manga_downloads", display_path
 
 
 def scan_chapters(output_dir: str, series_dir: str) -> list[dict]:
@@ -116,11 +119,15 @@ def scan_chapters(output_dir: str, series_dir: str) -> list[dict]:
     except ValueError:
         return []
 
-    if not os.path.exists(series_path):
+    if not os.path.isdir(series_path):
         return []
 
     chapters = []
-    for f in sorted(os.listdir(series_path)):
+    try:
+        entries = sorted(os.listdir(series_path))
+    except OSError:
+        return []
+    for f in entries:
         if not f.lower().endswith(('.cbz', '.zip')):
             continue
 
@@ -236,7 +243,7 @@ def get_cover_path(output_dir: str, series_dir: str) -> Optional[str]:
 
 def _find_cover(series_path: str) -> Optional[str]:
     """Find cover image: prefer WeebCentral 26-char ID, fall back to any JPG/WEBP."""
-    if not os.path.exists(series_path):
+    if not os.path.isdir(series_path):
         return None
     # Primary: WeebCentral cover (26-char ID filename)
     result = find_cover_in_dir(series_path)
