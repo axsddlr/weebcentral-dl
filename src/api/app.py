@@ -1,4 +1,5 @@
 """FastAPI application setup"""
+import asyncio
 import os
 import time
 from collections import defaultdict
@@ -37,6 +38,22 @@ async def verify_api_token(request: Request):
             raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+async def _scrape_startup_covers(downloader):
+    from src.database import get_tracked_without_covers, update_cover_url
+    entries = get_tracked_without_covers()
+    if not entries:
+        return
+    print(f"[STARTUP] Fetching cover images for {len(entries)} tracked series...")
+    for entry in entries:
+        try:
+            metadata = await asyncio.to_thread(downloader.get_series_metadata, entry["series_id"])
+            if metadata.get("coverUrl"):
+                update_cover_url(entry["series_id"], metadata["coverUrl"])
+        except Exception:
+            pass
+    print("[STARTUP] Cover fetch complete")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialize shared resources."""
@@ -64,9 +81,10 @@ async def lifespan(app: FastAPI):
 
     manga_list = os.getenv("MANGA_LIST") or "manga_list.txt"
     if os.path.exists(manga_list):
-        added, skipped = import_from_file(manga_list)
+        added, _ = import_from_file(manga_list)
         if added:
             print(f"[STARTUP] Synced {added} manga from {manga_list} into tracked DB")
+        asyncio.create_task(_scrape_startup_covers(downloader))
     elif not os.getenv("MANGA_LIST"):
         print(f"[STARTUP] No {manga_list} found — tracked DB starts empty")
 

@@ -305,16 +305,17 @@ export interface TrackedManga {
   title: string;
   added_at: string;
   last_checked_at: string | null;
+  cover_url: string | null;
 }
 
 export async function getTracked(): Promise<{ series: TrackedManga[]; total: number }> {
   return request('/api/tracked');
 }
 
-export async function addTracked(seriesId: string, title: string): Promise<void> {
+export async function addTracked(seriesId: string, title: string, coverUrl?: string): Promise<void> {
   await request('/api/tracked', {
     method: 'POST',
-    body: JSON.stringify({ seriesId, title }),
+    body: JSON.stringify({ seriesId, title, coverUrl }),
   });
 }
 

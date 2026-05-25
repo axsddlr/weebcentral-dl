@@ -24,18 +24,23 @@ def _init_db(conn: sqlite3.Connection):
             series_id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             added_at TEXT NOT NULL DEFAULT (datetime('now')),
-            last_checked_at TEXT
+            last_checked_at TEXT,
+            cover_url TEXT
         )
     """)
+    try:
+        conn.execute("ALTER TABLE tracked_manga ADD COLUMN cover_url TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
 
 
-def add_tracked(series_id: str, title: str) -> bool:
+def add_tracked(series_id: str, title: str, cover_url: str | None = None) -> bool:
     try:
         with _connect() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO tracked_manga (series_id, title, added_at) VALUES (?, ?, ?)",
-                (series_id.upper(), title, datetime.utcnow().isoformat()),
+                "INSERT OR REPLACE INTO tracked_manga (series_id, title, added_at, cover_url) VALUES (?, ?, ?, ?)",
+                (series_id.upper(), title, datetime.utcnow().isoformat(), cover_url),
             )
             conn.commit()
         return True
@@ -99,6 +104,25 @@ def count_tracked() -> int:
         return row["cnt"]
     except sqlite3.Error:
         return 0
+
+
+def update_cover_url(series_id: str, cover_url: str) -> bool:
+    try:
+        with _connect() as conn:
+            conn.execute("UPDATE tracked_manga SET cover_url = ? WHERE series_id = ?", (cover_url, series_id.upper()))
+            conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def get_tracked_without_covers() -> list[dict]:
+    try:
+        with _connect() as conn:
+            rows = conn.execute("SELECT series_id, title FROM tracked_manga WHERE cover_url IS NULL").fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.Error:
+        return []
 
 
 def import_from_file(filepath: str) -> tuple[int, int]:

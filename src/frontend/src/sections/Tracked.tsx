@@ -63,7 +63,7 @@ export function Tracked() {
       toast.success(`Imported ${result.added} entries (${result.skipped} skipped)`);
       fetchTracked();
     } catch {
-      toast.error("manga.txt not found or import failed");
+      toast.error("manga_list.txt not found or import failed");
     } finally {
       setImporting(false);
     }
@@ -92,7 +92,7 @@ export function Tracked() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleImport} disabled={importing}>
             {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-            Import manga.txt
+            Import manga_list.txt
           </Button>
           <Button variant="outline" onClick={fetchTracked}>
             <RefreshCw className="h-4 w-4 mr-2" /> Refresh
@@ -104,7 +104,7 @@ export function Tracked() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">{total} Tracked Series</CardTitle>
           <CardDescription>
-            Use the Search page to find new manga and add them, or import from manga.txt.
+            Use the Search page to find new manga and add them, or import from manga_list.txt.
             Run python main.py --tracked to download all.
           </CardDescription>
         </CardHeader>
@@ -124,7 +124,7 @@ export function Tracked() {
               <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>{searchQuery ? "No matching tracked manga" : "No tracked manga yet"}</p>
               <p className="text-sm mt-1">
-                {!searchQuery && "Import from manga.txt to get started"}
+                {!searchQuery && "Import from manga_list.txt to get started"}
               </p>
             </div>
           ) : (
@@ -133,8 +133,21 @@ export function Tracked() {
                 {filtered.map((series) => (
                   <div
                     key={series.series_id}
-                    className="flex items-center justify-between p-3 rounded-md border hover:bg-accent/50 transition-colors"
+                    className="flex items-center gap-4 p-3 rounded-md border hover:bg-accent/50 transition-colors"
                   >
+                    <div className="w-12 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
+                      {series.cover_url ? (
+                        <img
+                          src={series.cover_url}
+                          alt={series.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{series.title}</p>
                       <p className="text-xs text-muted-foreground font-mono">{series.series_id}</p>
