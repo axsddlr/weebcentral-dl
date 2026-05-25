@@ -275,6 +275,7 @@ export interface AppConfig {
   parallelWorkers: number;
   libraryPaths: string[];
   checkInterval: number;
+  namingScheme: string;
 }
 
 export async function getConfig(): Promise<AppConfig> {
@@ -350,6 +351,10 @@ export async function addTracked(seriesId: string, title: string, coverUrl?: str
 
 export async function updateTrackedStatus(seriesId: string, status: string): Promise<void> {
   await request(`/api/tracked/${encodeURIComponent(seriesId)}/status?status=${encodeURIComponent(status)}`, { method: 'PUT' });
+}
+
+export async function getExternalServerConfig(): Promise<{ url: string; apiKey: string; libraryId: string }> {
+  return request('/api/integrations/server');
 }
 
 export async function removeTracked(seriesId: string): Promise<void> {

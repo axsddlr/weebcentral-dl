@@ -8,10 +8,21 @@ from src.logging_utils import logger
 
 
 class Archiver:
-    def __init__(self, cover_manager: CoverManager, output_dir: str, use_zip: bool = False):
+    def __init__(self, cover_manager: CoverManager, output_dir: str, use_zip: bool = False,
+                 naming_scheme: str = "flat"):
         self.cover_manager = cover_manager
         self.output_dir = output_dir
         self.use_zip = use_zip
+        self.naming_scheme = naming_scheme
+
+    def _volume_dir(self, series_title: str, chapter_num: str) -> str:
+        vol_name, _ = get_vol_and_chapter_names(chapter_num)
+        return os.path.join(self.output_dir, series_title, vol_name)
+
+    def _volume_filename(self, series_title: str, chapter_num: str, chapter_type: str, ext: str) -> str:
+        vol_name, _ = get_vol_and_chapter_names(chapter_num)
+        suffix = f"-{chapter_type}" if chapter_type else ""
+        return f"{series_title}-{vol_name}{suffix}{ext}"
 
     def archive_chapter(
         self,
@@ -21,7 +32,10 @@ class Archiver:
         chapter_type: str,
         comicinfo_xml: str | None = None,
     ):
-        out_dir = os.path.join(self.output_dir, series_title)
+        if self.naming_scheme == "volume":
+            out_dir = self._volume_dir(series_title, chapter_num)
+        else:
+            out_dir = os.path.join(self.output_dir, series_title)
         os.makedirs(out_dir, exist_ok=True)
 
         if not has_images(chapter_dir):
@@ -56,18 +70,25 @@ class Archiver:
             zf.write(img_file, arcname=os.path.basename(img_file))
 
     def _create_zip(self, out_dir: str, chapter_num: str, series_title: str, image_files: list, comicinfo_xml: str | None):
-        vol_name, _ = get_vol_and_chapter_names(chapter_num)
-        zip_path = os.path.join(out_dir, f"{vol_name}.zip")
+        if self.naming_scheme == "volume":
+            vol_name, chap_name = get_vol_and_chapter_names(chapter_num)
+            zip_path = os.path.join(out_dir, f"{chap_name}.zip")
+        else:
+            vol_name, _ = get_vol_and_chapter_names(chapter_num)
+            zip_path = os.path.join(out_dir, f"{vol_name}.zip")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             self._write_archive_with_cover(zf, image_files, series_title, comicinfo_xml)
         logger.info(f"Created zip archive: {zip_path}")
 
     def _create_cbz(self, out_dir: str, chapter_num: str, chapter_type: str,
                     series_title: str, image_files: list, comicinfo_xml: str | None):
-        out_file = os.path.join(
-            out_dir,
-            f"{series_title}-{chapter_num}{('-' + chapter_type) if chapter_type else ''}.cbz",
-        )
+        if self.naming_scheme == "volume":
+            vol_name, chap_name = get_vol_and_chapter_names(chapter_num)
+            suffix = f"-{chapter_type}" if chapter_type else ""
+            filename = f"{series_title}-{chap_name}{suffix}.cbz"
+        else:
+            filename = f"{series_title}-{chapter_num}{('-' + chapter_type) if chapter_type else ''}.cbz"
+        out_file = os.path.join(out_dir, filename)
         with zipfile.ZipFile(out_file, "w", zipfile.ZIP_DEFLATED) as zf:
             self._write_archive_with_cover(zf, image_files, series_title, comicinfo_xml)
         logger.info(f"Wrote {out_file}")

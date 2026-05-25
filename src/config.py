@@ -39,6 +39,9 @@ class DownloaderConfig:
     output_dir: str = "./manga_downloads"
     library_paths: List[str] = field(default_factory=list)
 
+    # Naming scheme for chapter archives: "flat" (SeriesName-N.cbz) or "volume" (SeriesName vN/SeriesName vN cN.cbz)
+    naming_scheme: str = "flat"
+
     # Auto-check interval for tracked manga (minutes, 0 = disabled)
     check_interval: int = 0
 
@@ -116,10 +119,26 @@ class ConfigLoader:
 
         return DownloaderConfig(**config_dict)
 
+    def get_external_server_config(self):
+        from src.integrations import ExternalServerConfig
+        raw = self.raw_config.get('external_server', {})
+        return ExternalServerConfig(
+            url=raw.get('url', ''),
+            api_key=raw.get('api_key', ''),
+            library_id=raw.get('library_id', ''),
+        )
+
     def reload(self):
         """Reload configuration from file"""
         if self.config_path.exists():
             self.load_config()
+
+
+def load_external_server_config(config_path: str | None = None):
+    if config_path is None:
+        config_path = os.getenv("CONFIG_FILE", "config.toml")
+    loader = ConfigLoader(config_path)
+    return loader.get_external_server_config()
 
 
 def load_config(config_path: str | None = None, cli_overrides: Optional[Dict[str, Any]] = None) -> DownloaderConfig:
@@ -155,7 +174,7 @@ def save_config(config: DownloaderConfig, config_path: str | None = None):
     persistent_fields = {
         'latest', 'sequence', 'zip', 'verbose', 'use_english_title', 'comicinfo',
         'rlc', 'max_sleep', 'max_retries', 'parallel_workers', 'output_dir',
-        'library_paths', 'check_interval',
+        'library_paths', 'check_interval', 'naming_scheme',
     }
     config_dict = {k: v for k, v in asdict(config).items() if k in persistent_fields}
     toml_data = {'downloader': config_dict}

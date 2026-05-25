@@ -14,7 +14,7 @@ def build_comicinfo_xml(
     source_url: str,
 ) -> str:
     """Build ComicInfo.xml content from series metadata."""
-    root = ET.Element("ComicInfo", Version="1.0")
+    root = ET.Element("ComicInfo", Version="2.0")
 
     def add(tag: str, value):
         if value:
@@ -29,8 +29,17 @@ def build_comicinfo_xml(
     add("Writer", ", ".join(metadata.get("authors", [])))
     add("Genre", ", ".join(metadata.get("tags", [])))
     add("Web", source_url)
-    add("Manga", "Yes")
+    add("Manga", "YesAndRightToLeft")
     add("LanguageISO", "en")
     add("Notes", f"Series ID: {series_id}")
+
+    add("Status", metadata.get("status", "").capitalize())
+    add("Count", metadata.get("total_chapters", ""))
+    add("AgeRating", "Adult" if metadata.get("adult") else "Unknown")
+    add("Publisher", "Webcomic" if metadata.get("type") == "Webcomic" else metadata.get("publisher", ""))
+
+    if metadata.get("anime_adaptation"):
+        ET.SubElement(root, "CommunityRating").text = "5"
+        ET.SubElement(root, "UserRating").text = "5"
 
     return ET.tostring(root, encoding="unicode")

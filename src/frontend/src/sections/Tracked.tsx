@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Trash2, Download, Upload, RefreshCw, Loader2,
   BookOpen, Search, Play, CircleCheck, Eye,
@@ -129,7 +129,7 @@ export function Tracked() {
         <CardContent>
           <div className="flex gap-1 mb-3 flex-wrap">
             {["", "reading", "downloading", "complete"].map((s) => {
-              const iconMap: Record<string, JSX.Element> = {
+              const iconMap: Record<string, React.JSX.Element> = {
                 reading: <Eye className="h-3.5 w-3.5" />,
                 downloading: <Download className="h-3.5 w-3.5" />,
                 complete: <CircleCheck className="h-3.5 w-3.5" />,

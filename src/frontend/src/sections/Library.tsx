@@ -307,16 +307,16 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
                     className="flex items-center justify-between p-3 rounded hover:bg-muted transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      {chapter.lastReadPage > 0 && (
+                      {(chapter.lastReadPage ?? 0) > 0 && (
                         <div className="relative w-8 h-8 flex items-center justify-center">
                           <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
                             <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/20" />
                             <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="3"
                               strokeDasharray={`${2 * Math.PI * 14}`}
-                              strokeDashoffset={`${2 * Math.PI * 14 * (1 - Math.min(chapter.lastReadPage / chapter.totalPages, 1))}`}
+                              strokeDashoffset={`${2 * Math.PI * 14 * (1 - Math.min((chapter.lastReadPage ?? 0) / chapter.totalPages, 1))}`}
                               className="text-primary" strokeLinecap="round" />
                           </svg>
-                          <span className="absolute text-[10px] font-medium">{Math.round((chapter.lastReadPage / chapter.totalPages) * 100)}%</span>
+                          <span className="absolute text-[10px] font-medium">{Math.round(((chapter.lastReadPage ?? 0) / chapter.totalPages) * 100)}%</span>
                         </div>
                       )}
                       <div>

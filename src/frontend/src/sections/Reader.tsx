@@ -97,7 +97,7 @@ export function Reader({ manga, chapter, onViewChange }: ReaderProps) {
     };
   }, []);
 
-  const saveRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (manga && chapter && pageUrls.length > 0) {
       if (saveRef.current) clearTimeout(saveRef.current);

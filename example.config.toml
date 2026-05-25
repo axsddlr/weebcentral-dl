@@ -124,6 +124,27 @@ parallel_workers = 99
 # max_sleep = 300
 
 # ============================================================================
+# ARCHIVE NAMING SCHEME
+# ============================================================================
+
+# How chapter archives are named and organized:
+#   "flat"   — SeriesName/SeriesName-N.cbz (default, compatible with everything)
+#   "volume" — SeriesName/SeriesName v001/SeriesName v001 c001.cbz (Komga-style
+#              volume grouping, useful when you have many chapters per series)
+naming_scheme = "flat"
+
+# ============================================================================
+# EXTERNAL MEDIA SERVER (Optional)
+# ============================================================================
+
+[external_server]
+# Automatically import downloaded chapters into an external media server
+# (Komga, Kavita, etc.). Requires httpx: pip install httpx
+# url = "http://localhost:25600"
+# api_key = "your-api-key"
+# library_id = "your-library-id"
+
+# ============================================================================
 # AUTO-CHECK INTERVAL
 # ============================================================================
 

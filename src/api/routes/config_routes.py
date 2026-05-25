@@ -23,6 +23,7 @@ def config_to_response(config: DownloaderConfig) -> dict:
         "parallelWorkers": config.parallel_workers,
         "libraryPaths": config.library_paths,
         "checkInterval": config.check_interval,
+        "namingScheme": config.naming_scheme,
     }
 
 
@@ -64,6 +65,8 @@ async def update_config(request: Request, body: ConfigUpdateRequest):
         config.library_paths = body.libraryPaths
     if body.checkInterval is not None:
         config.check_interval = body.checkInterval
+    if body.namingScheme is not None:
+        config.naming_scheme = body.namingScheme
 
     save_config(config, request.app.state.config_path)
     return config_to_response(config)
