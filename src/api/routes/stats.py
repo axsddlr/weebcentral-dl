@@ -22,29 +22,39 @@ def _format_size(total_bytes: int) -> str:
 @router.get("/stats")
 async def get_stats(request: Request):
     """Get dashboard statistics."""
-    config = request.app.state.config
-    qm = request.app.state.queue_manager
-    cache = request.app.state.library_cache
+    try:
+        config = request.app.state.config
+        qm = request.app.state.queue_manager
+        cache = request.app.state.library_cache
 
-    cache.set_output_dir(os.path.abspath(request.app.state.config.output_dir), config.library_paths)
+        cache.set_output_dir(os.path.abspath(config.output_dir), config.library_paths)
 
-    library, storage_bytes = await asyncio.gather(
-        cache.get_library(),
-        cache.get_dir_size(),
-    )
+        library, storage_bytes = await asyncio.gather(
+            cache.get_library(),
+            cache.get_dir_size(),
+        )
 
-    total_series = len(library)
-    total_chapters = sum(s["totalChapters"] for s in library)
+        total_series = len(library)
+        total_chapters = sum(s.get("totalChapters", 0) for s in library)
 
-    queue_state = qm.get_queue_state()
+        queue_state = qm.get_queue_state()
 
-    return {
-        "totalSeries": total_series,
-        "totalChapters": total_chapters,
-        "storageUsed": _format_size(storage_bytes),
-        "queueActive": sum(
-            1 for t in qm.tasks if t.status in ("pending", "downloading")
-        ),
-        "queueCompleted": queue_state["completedTasks"],
-        "queueFailed": queue_state["failedTasks"],
-    }
+        return {
+            "totalSeries": total_series,
+            "totalChapters": total_chapters,
+            "storageUsed": _format_size(storage_bytes),
+            "queueActive": sum(
+                1 for t in qm.tasks if t.status in ("pending", "downloading")
+            ),
+            "queueCompleted": queue_state.get("completedTasks", 0),
+            "queueFailed": queue_state.get("failedTasks", 0),
+        }
+    except Exception:
+        return {
+            "totalSeries": 0,
+            "totalChapters": 0,
+            "storageUsed": "0 B",
+            "queueActive": 0,
+            "queueCompleted": 0,
+            "queueFailed": 0,
+        }

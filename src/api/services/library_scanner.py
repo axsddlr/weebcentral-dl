@@ -41,8 +41,13 @@ def _scan_single_dir(output_dir: str) -> list[dict]:
     if not os.path.exists(output_dir):
         return []
 
+    try:
+        entries = sorted(os.listdir(output_dir))
+    except OSError:
+        return []
+
     series_list = []
-    for entry in sorted(os.listdir(output_dir)):
+    for entry in entries:
         series_path = os.path.join(output_dir, entry)
         if not os.path.isdir(series_path):
             continue
