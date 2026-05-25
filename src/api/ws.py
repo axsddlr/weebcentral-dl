@@ -40,10 +40,10 @@ class ConnectionManagers:
 
 async def _verify_ws_token(websocket: WebSocket) -> bool:
     """Check API_TOKEN via httpOnly cookie (sent automatically on handshake)."""
-    expected = os.getenv("API_TOKEN")
+    expected = (os.getenv("API_TOKEN") or "").strip()
     if not expected:
         return True
-    return websocket.cookies.get("api_token") == expected
+    return (websocket.cookies.get("api_token") or "").strip() == expected
 
 
 async def _ws_handler(websocket: WebSocket, mgr: ConnectionManager):

@@ -22,14 +22,14 @@ from src.utils import resolve_safe_path
 
 async def verify_api_token(request: Request):
     """Check API_TOKEN in header or httpOnly cookie for non-GET API routes."""
-    expected = os.getenv("API_TOKEN")
+    expected = (os.getenv("API_TOKEN") or "").strip()
     if not expected:
         return
 
     if request.method != "GET" and request.url.path.startswith("/api/") \
             and not request.url.path.startswith("/api/auth/"):
-        header_token = request.headers.get("X-API-Token", "")
-        cookie_token = request.cookies.get("api_token", "")
+        header_token = (request.headers.get("X-API-Token") or "").strip()
+        cookie_token = (request.cookies.get("api_token") or "").strip()
 
         if header_token != expected and cookie_token != expected:
             from fastapi import HTTPException
