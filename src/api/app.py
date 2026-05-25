@@ -16,6 +16,7 @@ from src.api.services.queue_manager import QueueManager
 from src.api.services.library_cache import LibraryCache
 from src.api.services.log_collector import LogCollector
 from src.config import load_config
+from src.database import import_from_file
 from src.downloader import WeebCentralDownloader
 from src.utils import resolve_safe_path
 
@@ -60,6 +61,15 @@ async def lifespan(app: FastAPI):
     app.state.ws = ws_managers
 
     await queue_manager.start()
+
+    manga_list = os.getenv("MANGA_LIST") or "manga_list.txt"
+    if os.path.exists(manga_list):
+        added, skipped = import_from_file(manga_list)
+        if added:
+            print(f"[STARTUP] Synced {added} manga from {manga_list} into tracked DB")
+    elif not os.getenv("MANGA_LIST"):
+        print(f"[STARTUP] No {manga_list} found — tracked DB starts empty")
+
     yield
     await queue_manager.stop()
     log_collector.uninstall()

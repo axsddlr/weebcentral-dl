@@ -35,10 +35,10 @@ async def remove_tracked_manga(request: Request, series_id: str):
 
 @router.post("/tracked/import")
 async def import_tracked(request: Request):
-    """Import from manga.txt file in the working directory."""
+    """Import from manga_list.txt (or MANGA_LIST env) into tracked DB."""
     import os
-    filepath = os.path.join(os.getcwd(), "manga.txt")
+    filepath = os.getenv("MANGA_LIST") or os.path.join(os.getcwd(), "manga_list.txt")
     if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail="manga.txt not found")
+        raise HTTPException(status_code=404, detail=f"{os.path.basename(filepath)} not found")
     added, skipped = import_from_file(filepath)
     return {"added": added, "skipped": skipped}

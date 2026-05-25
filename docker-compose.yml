@@ -11,6 +11,7 @@ services:
     #   API_TOKEN=your-secret-token
     volumes:
       - ./config.toml:/app/config.toml
+      - ./manga_list.txt:/app/manga_list.txt
       # manga_downloads is BOTH the download destination AND the library source.
       # Downloaded manga appear in the Library reader automatically — no extra setup.
       - ./manga_downloads:/app/manga_downloads
@@ -20,6 +21,7 @@ services:
       - ./library:/app/library:ro
     environment:
       - CONFIG_FILE=config.toml
+      - MANGA_LIST=manga_list.txt
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/stats')"]
