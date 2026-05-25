@@ -6,4 +6,4 @@ tomli==2.2.1
 fastapi==0.136.3
 uvicorn[standard]==0.42.0
 tomli-w==1.2.0
-aiofiles==24.1.0
+aiofiles==25.1.0
