@@ -4,7 +4,9 @@ import sqlite3
 from datetime import datetime
 from typing import Optional
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "weebcentral.db")
+DB_PATH = os.environ.get("WEEBCENTRAL_DB_PATH") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "weebcentral.db"
+)
 
 
 def _connect() -> sqlite3.Connection:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CLI interface for WeebCentral Downloader"""
 import argparse
+import os
 import re
 import sys
 from typing import Optional, Set
@@ -139,7 +140,7 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="config.toml",
+        default=os.environ.get("CONFIG_FILE", "config.toml"),
         help="Path to config file (default: config.toml)",
     )
     parser.add_argument(
