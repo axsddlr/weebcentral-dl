@@ -139,16 +139,21 @@ The Web UI can be protected with an API token to prevent unauthorized access on 
 
 ### Setting up
 
-```bash
-# 1. Create .env from the example
-cp .env.example .env
+**Docker Compose (CLI):** Add env vars to a `.env` file or inline in `docker-compose.yml`:
 
-# 2. Set your token
-#    Edit .env and set: API_TOKEN="your-secret-token"
-#
-# 3. Restart the container
+```bash
+# Create .env from the example
+cp .env.example .env
+# Edit .env and set: API_TOKEN="your-secret-token"
+
+# Or set inline in docker-compose.yml under environment:
+#   - API_TOKEN=your-secret-token
+
+# Then restart
 docker compose up -d
 ```
+
+**Portainer:** Edit the container's **Environment variables** section (not the stack's) and add `API_TOKEN` with your value. Then redeploy the stack.
 
 ### How it works
 
