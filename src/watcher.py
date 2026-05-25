@@ -24,7 +24,7 @@ class ConfigWatcher(FileSystemEventHandler):
             current_mtime = os.path.getmtime(self.config_path)
             if current_mtime > self.last_modified:
                 self.last_modified = current_mtime
-                print(f"\n[RELOAD] Config file changed, reloading...")
+                print("\n[RELOAD] Config file changed, reloading...")
                 self.config_loader.reload()
 
 
@@ -121,7 +121,7 @@ class MangaListWatcher(FileSystemEventHandler):
                     print(f"[ERROR stderr] {result.stderr[:500]}")
         except subprocess.TimeoutExpired:
             print("[ERROR] Download process timed out after 1 hour")
-        print(f"[DONE] Finished processing. Watching for changes...")
+        print("[DONE] Finished processing. Watching for changes...")
 
     def process_file(self):
         """Process manga list file with current config"""
@@ -135,7 +135,7 @@ class MangaListWatcher(FileSystemEventHandler):
                     print(f"[ERROR stderr] {result.stderr[:500]}")
         except subprocess.TimeoutExpired:
             print("[ERROR] Download process timed out after 1 hour")
-        print(f"[DONE] Finished processing. Watching for changes...")
+        print("[DONE] Finished processing. Watching for changes...")
 
 
 def run_watcher():
@@ -157,7 +157,7 @@ def run_watcher():
     manga_watcher = MangaListWatcher(manga_file, config_watcher.config_loader)
 
     if use_tracked:
-        print(f"[STARTUP] Tracked DB mode — processing all tracked manga")
+        print("[STARTUP] Tracked DB mode — processing all tracked manga")
         manga_watcher.process_tracked()
     else:
         if not os.getenv("MANGA_LIST") and not manga_file.exists():

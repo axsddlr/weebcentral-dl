@@ -2,7 +2,6 @@
 import asyncio
 import uuid
 from collections import deque
-from datetime import datetime
 from typing import Optional
 
 from src.logging_utils import logger

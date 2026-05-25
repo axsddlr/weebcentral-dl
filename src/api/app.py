@@ -5,7 +5,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +15,7 @@ from src.api.ws import ws_router, ConnectionManagers
 from src.api.services.queue_manager import QueueManager
 from src.api.services.library_cache import LibraryCache
 from src.api.services.log_collector import LogCollector
-from src.config import DownloaderConfig, load_config
+from src.config import load_config
 from src.downloader import WeebCentralDownloader
 from src.utils import resolve_safe_path
 

@@ -17,7 +17,6 @@ import shutil
 import re
 import html
 import argparse
-from pathlib import Path
 from collections import defaultdict
 from src.logging_utils import logger
 
@@ -349,13 +348,13 @@ def add_covers_to_archives_command(manga_dir, dry_run=False, verbose=False):
                         os.replace(tmp_path, archive_path)
                         logger.success(f"  Added cover to: '{archive_name}'")
                         updated_count += 1
-                    except Exception as e:
+                    except Exception:
                         # Clean up temp file if something went wrong
                         if os.path.exists(tmp_path):
                             os.remove(tmp_path)
                         raise
 
-            except PermissionError as e:
+            except PermissionError:
                 logger.error(f"  Error processing '{archive_name}': Permission denied (file may be locked or read-only)")
                 skipped_count += 1
             except Exception as e:

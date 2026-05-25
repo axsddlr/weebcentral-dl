@@ -2,7 +2,6 @@
 import os
 import re
 import zipfile
-from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote
 
