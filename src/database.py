@@ -104,14 +104,42 @@ def remove_tracked(series_id: str) -> bool:
 
 def get_all_tracked(status: str | None = None) -> list[dict]:
     try:
+        import json
         with _connect() as conn:
             if status:
-                rows = conn.execute(
-                    "SELECT * FROM tracked_manga WHERE status = ? ORDER BY added_at DESC", (status,)
-                ).fetchall()
+                rows = conn.execute("""
+                    SELECT t.*, s.authors, s.tags, s.status as series_status,
+                           s.type, s.release_year, s.anime_adaptation,
+                           s.official_translation, s.adult, s.description
+                    FROM tracked_manga t
+                    LEFT JOIN series_metadata s ON t.series_id = s.series_id
+                    WHERE t.status = ?
+                    ORDER BY t.added_at DESC
+                """, (status,)).fetchall()
             else:
-                rows = conn.execute("SELECT * FROM tracked_manga ORDER BY added_at DESC").fetchall()
-        return [dict(r) for r in rows]
+                rows = conn.execute("""
+                    SELECT t.*, s.authors, s.tags, s.status as series_status,
+                           s.type, s.release_year, s.anime_adaptation,
+                           s.official_translation, s.adult, s.description
+                    FROM tracked_manga t
+                    LEFT JOIN series_metadata s ON t.series_id = s.series_id
+                    ORDER BY t.added_at DESC
+                """).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            if d.get("authors"):
+                d["authors"] = json.loads(d["authors"])
+            if d.get("tags"):
+                d["tags"] = json.loads(d["tags"])
+            if d.get("anime_adaptation") is not None:
+                d["anime_adaptation"] = bool(d["anime_adaptation"])
+            if d.get("official_translation") is not None:
+                d["official_translation"] = bool(d["official_translation"])
+            if d.get("adult") is not None:
+                d["adult"] = bool(d["adult"])
+            result.append(d)
+        return result
     except sqlite3.Error:
         return []
 

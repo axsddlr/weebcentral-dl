@@ -201,11 +201,32 @@ export function Tracked() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground font-mono">{series.series_id}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Added {new Date(series.added_at).toLocaleDateString()}
-                        {series.last_checked_at && " * Checked " + new Date(series.last_checked_at).toLocaleDateString()}
-                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {series.series_status && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.series_status}</span>
+                        )}
+                        {series.type && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.type}</span>
+                        )}
+                        {series.release_year && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.release_year}</span>
+                        )}
+                        {series.adult && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500">18+</span>
+                        )}
+                        {series.anime_adaptation && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500">Anime</span>
+                        )}
+                        {series.authors && series.authors.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.authors.join(", ")}</span>
+                        )}
+                        {series.tags && series.tags.slice(0, 3).map(tag => (
+                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/5 text-primary">{tag}</span>
+                        ))}
+                        {series.tags && series.tags.length > 3 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">+{series.tags.length - 3}</span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4 shrink-0">
                       <Button size="sm" variant="outline" onClick={() => handleDownload(series)}>

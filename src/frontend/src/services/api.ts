@@ -335,6 +335,15 @@ export interface TrackedManga {
   last_checked_at: string | null;
   cover_url: string | null;
   status?: string;
+  authors?: string[];
+  tags?: string[];
+  series_status?: string;
+  type?: string;
+  release_year?: string;
+  anime_adaptation?: boolean;
+  official_translation?: boolean;
+  adult?: boolean;
+  description?: string;
 }
 
 export async function getTracked(query?: string): Promise<{ series: TrackedManga[]; total: number }> {
