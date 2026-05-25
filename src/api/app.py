@@ -108,13 +108,15 @@ def create_app() -> FastAPI:
         return response
 
     # Rate limiting middleware (sliding window, in-memory)
+    # Only applies to state-changing API calls — not local file serving
     _rate_buckets: dict[str, list[float]] = defaultdict(list)
-    _rate_limit = 60    # max requests per window
+    _rate_limit = 120   # max requests per window
     _rate_window = 60.0  # window in seconds
+    _unlimited_prefixes = ("/api/reader/", "/api/library/", "/api/stats", "/api/config", "/api/ws")
 
     @app.middleware("http")
     async def rate_limit_middleware(request: Request, call_next):
-        if request.url.path.startswith("/api/"):
+        if request.url.path.startswith("/api/") and not request.url.path.startswith(_unlimited_prefixes):
             client = request.client.host if request.client else "unknown"
             now = time.time()
             bucket = _rate_buckets[client]
