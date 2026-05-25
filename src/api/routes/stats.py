@@ -1,9 +1,8 @@
 """Dashboard statistics routes"""
 import asyncio
+import os
 
 from fastapi import APIRouter, Request
-
-from src.api.routes import get_output_dir
 
 router = APIRouter(tags=["stats"])
 
@@ -27,7 +26,7 @@ async def get_stats(request: Request):
     qm = request.app.state.queue_manager
     cache = request.app.state.library_cache
 
-    cache.set_output_dir(get_output_dir(request), config.library_paths)
+    cache.set_output_dir(os.path.abspath(request.app.state.config.output_dir), config.library_paths)
 
     library, storage_bytes = await asyncio.gather(
         cache.get_library(),
