@@ -25,7 +25,8 @@ export function useWebSocket({ path, onMessage, reconnectDelay = 3000 }: UseWebS
   const connect = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const url = `${protocol}//${host}${path}`;
+    const token = (() => { try { return localStorage.getItem('apiToken'); } catch { return null; } })();
+    const url = token ? `${protocol}//${host}${path}?token=${encodeURIComponent(token)}` : `${protocol}//${host}${path}`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;

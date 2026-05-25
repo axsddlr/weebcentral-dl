@@ -24,6 +24,7 @@ manga_downloads/
 config.toml
 .env
 .env.*
+!.env.example
 
 # Misc
 Kimi_Agent_*/

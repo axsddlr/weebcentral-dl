@@ -133,6 +133,53 @@ WATCH_TRACKED=true python -m src.watcher
 
 Without `WATCH_TRACKED`, the watcher monitors `manga_list.txt` for changes.
 
+## API Authentication
+
+The Web UI can be protected with an API token to prevent unauthorized access on shared networks.
+
+### Setting up
+
+```bash
+# 1. Create .env from the example
+cp .env.example .env
+
+# 2. Set your token
+#    Edit .env and set: API_TOKEN="your-secret-token"
+#
+# 3. Restart the container
+docker compose up -d
+```
+
+### How it works
+
+Once `API_TOKEN` is set:
+
+| Access type | Protected? | How to authenticate |
+|-------------|-----------|-------------------|
+| Web UI (browser) | State-changing actions only | Automatic — token is sent automatically by the UI |
+| HTTP API (curl) | All POST/PUT/DELETE routes | Pass `X-API-Token: your-secret-token` header or `?token=your-secret-token` query param |
+| WebSocket (live updates) | All WebSocket connections | Pass `?token=your-secret-token` query param in the WebSocket URL |
+| GET routes (library, reader, search) | **Not** protected | Public read access — covers, chapters, and search are open |
+| CLI / local usage | **Not** protected | Only enforced over HTTP; local Python usage is unaffected |
+
+### API examples
+
+```bash
+# Read routes (no auth needed)
+curl http://localhost:8000/api/library
+curl http://localhost:8000/api/stats
+
+# State-changing routes (auth required)
+curl -X POST http://localhost:8000/api/library/refresh \
+  -H "X-API-Token: your-secret-token"
+
+curl -X POST "http://localhost:8000/api/tracked/import?token=your-secret-token"
+
+# WebSocket with auth
+# In JavaScript:
+#   new WebSocket(`ws://localhost:8000/ws/queue?token=${token}`)
+```
+
 ## Development
 
 ```bash

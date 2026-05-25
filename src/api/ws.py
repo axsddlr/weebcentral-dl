@@ -1,4 +1,5 @@
 """WebSocket handlers for real-time updates"""
+import os
 from typing import Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -37,34 +38,36 @@ class ConnectionManagers:
         self.logs = ConnectionManager()
 
 
-@ws_router.websocket("/ws/progress")
-async def ws_progress(websocket: WebSocket):
-    mgrs = websocket.app.state.ws
-    await mgrs.progress.connect(websocket)
+async def _verify_ws_token(websocket: WebSocket) -> bool:
+    """Check API_TOKEN on WebSocket upgrade via query param."""
+    token = os.getenv("API_TOKEN")
+    if not token:
+        return True
+    return websocket.query_params.get("token") == token
+
+
+async def _ws_handler(websocket: WebSocket, mgr: ConnectionManager):
+    if not await _verify_ws_token(websocket):
+        await websocket.close(code=4001)
+        return
+    await mgr.connect(websocket)
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        mgrs.progress.disconnect(websocket)
+        mgr.disconnect(websocket)
+
+
+@ws_router.websocket("/ws/progress")
+async def ws_progress(websocket: WebSocket):
+    await _ws_handler(websocket, websocket.app.state.ws.progress)
 
 
 @ws_router.websocket("/ws/queue")
 async def ws_queue(websocket: WebSocket):
-    mgrs = websocket.app.state.ws
-    await mgrs.queue.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        mgrs.queue.disconnect(websocket)
+    await _ws_handler(websocket, websocket.app.state.ws.queue)
 
 
 @ws_router.websocket("/ws/logs")
 async def ws_logs(websocket: WebSocket):
-    mgrs = websocket.app.state.ws
-    await mgrs.logs.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        mgrs.logs.disconnect(websocket)
+    await _ws_handler(websocket, websocket.app.state.ws.logs)

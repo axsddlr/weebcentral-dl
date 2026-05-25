@@ -19,6 +19,7 @@ export function Settings() {
   const [newLibraryPath, setNewLibraryPath] = useState('');
   const [maintenanceDryRun, setMaintenanceDryRun] = useState(true);
   const [runningMaintenance, setRunningMaintenance] = useState<null | 'add-covers' | 'migrate-covers'>(null);
+  const [apiToken, setApiToken] = useState(() => { try { return localStorage.getItem('apiToken') ?? ''; } catch { return ''; } });
 
   useEffect(() => {
     api.getConfig().then(c => {
@@ -308,6 +309,32 @@ export function Settings() {
                   <p className="text-sm text-muted-foreground">Enable detailed debug output for troubleshooting</p>
                 </div>
                 <Switch checked={config.verbose} onCheckedChange={(checked) => handleChange('verbose', checked)} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>API Token</CardTitle>
+              <CardDescription>Authentication token for API requests (stored in browser)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="api-token">API Token</Label>
+                <Input
+                  id="api-token"
+                  type="password"
+                  value={apiToken}
+                  onChange={(e) => {
+                    setApiToken(e.target.value);
+                    try { localStorage.setItem('apiToken', e.target.value); } catch { /* ignore */ }
+                  }}
+                  placeholder="Set if API_TOKEN is configured on the server"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required only if the server has <code>API_TOKEN</code> set. Stored in your browser's local storage.
+                  Passed as <code>X-API-Token</code> header in HTTP requests and <code>?token=</code> in WebSocket URLs.
+                </p>
               </div>
             </CardContent>
           </Card>

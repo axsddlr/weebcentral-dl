@@ -12,8 +12,22 @@ interface RequestOptions extends RequestInit {
   timeout?: number;
 }
 
+function getApiToken(): string | null {
+  try {
+    return localStorage.getItem('apiToken');
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getApiToken();
+  if (token) {
+    headers['X-API-Token'] = token;
+  }
 
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
@@ -22,7 +36,7 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
 
     try {
       const res = await fetch(`${BASE}${path}`, {
-        headers: { 'Content-Type': 'application/json', ...fetchOptions.headers },
+        headers: { ...headers, ...(fetchOptions.headers as Record<string, string> | undefined) },
         ...fetchOptions,
         signal: controller.signal,
       });
