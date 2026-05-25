@@ -1,6 +1,6 @@
 """WeebCentral Downloader — backward-compatible facade."""
 import os
-from typing import Optional, List, Tuple, Set
+from typing import Optional, List, Tuple
 
 from src.config import DownloaderConfig
 from src.downloader.http_client import HttpClient

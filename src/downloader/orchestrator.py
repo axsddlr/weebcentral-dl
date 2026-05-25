@@ -79,9 +79,6 @@ class DownloadOrchestrator:
         if getattr(self.config, "comicinfo", False):
             comicinfo_metadata = self.metadata_extractor.get_series_metadata(series_id)
 
-        out_dir = os.path.join(self.output_dir, series_title)
-        is_fresh = not os.path.exists(out_dir) or not os.listdir(out_dir)
-
         logger.debug(
             f"Downloading chapters: {chapters_to_download if chapters_to_download else 'ALL'} "
             f"(zip mode: {self.config.zip})"

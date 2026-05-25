@@ -12,7 +12,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.11"
-      - run: uv sync --frozen
+      - run: uv sync --frozen --group dev
       - run: uv run ruff check src/
 
   frontend:

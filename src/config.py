@@ -96,20 +96,20 @@ class ConfigLoader:
         config_dict = {}
 
         # Get all DownloaderConfig fields
-        for field in DownloaderConfig.__dataclass_fields__.keys():
+        for key in DownloaderConfig.__dataclass_fields__.keys():
             value = None
 
             # Priority 1: CLI overrides (if provided and not None)
-            if cli_overrides and field in cli_overrides and cli_overrides[field] is not None:
-                value = cli_overrides[field]
+            if cli_overrides and key in cli_overrides and cli_overrides[key] is not None:
+                value = cli_overrides[key]
 
             # Priority 2: TOML config
-            elif field in toml_config:
-                value = toml_config[field]
+            elif key in toml_config:
+                value = toml_config[key]
 
             # Priority 3: Defaults (handled by dataclass)
             if value is not None:
-                config_dict[field] = value
+                config_dict[key] = value
 
         return DownloaderConfig(**config_dict)
 
