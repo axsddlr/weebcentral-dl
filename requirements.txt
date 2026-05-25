@@ -1,5 +1,5 @@
 cloudscraper==1.2.71
-Pillow==11.3.0
+Pillow==12.2.0
 loguru==0.7.3
 watchdog==4.0.1
 tomli==2.2.1
