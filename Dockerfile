@@ -35,7 +35,8 @@ COPY server.py entrypoint.sh example.config.toml ./
 COPY --from=frontend-builder /frontend/dist/ ./src/web/
 
 # Runtime data directory + non-root user in one layer
-RUN mkdir -p manga_downloads \
+RUN chmod +x entrypoint.sh \
+    && mkdir -p manga_downloads \
     && adduser --disabled-password --gecos "" --uid 1000 appuser \
     && chown -R appuser:appuser /app
 
