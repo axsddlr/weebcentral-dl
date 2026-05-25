@@ -3,7 +3,7 @@ FROM node:26-alpine AS frontend-builder
 WORKDIR /frontend
 
 COPY src/frontend/package*.json ./
-RUN npm ci
+RUN for i in 1 2 3; do echo "npm ci attempt $i"; npm ci && break || sleep 5; done
 
 COPY src/frontend/ ./
 RUN npm run build
