@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Loader2, Plus, X, FolderOpen, LogOut } from 'lucide-react';
+import { Save, RotateCcw, Loader2, Plus, X, FolderOpen, LogOut, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -196,6 +196,51 @@ export function Settings() {
                 <br />
                 <strong>Docker:</strong> use container paths (e.g. /app/library). Mount host folders as volumes in docker-compose.yml first.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tracker Settings</CardTitle>
+              <CardDescription>Configure automatic checking for new chapters</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Auto-Check Interval</Label>
+                    <p className="text-sm text-muted-foreground">
+                      How often the Docker watcher checks tracked manga for new chapters
+                      (set to 0 to disable auto-checking)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium min-w-[6rem] text-right">
+                      {config.checkInterval === 0
+                        ? 'Disabled'
+                        : config.checkInterval < 60
+                          ? `${config.checkInterval}m`
+                          : `${(config.checkInterval / 60).toFixed(0)}h`}
+                    </span>
+                  </div>
+                </div>
+                <Slider
+                  value={[config.checkInterval]}
+                  onValueChange={([value]) => handleChange('checkInterval', value)}
+                  min={0}
+                  max={1440}
+                  step={15}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Off</span>
+                  <span>15m</span>
+                  <span>1h</span>
+                  <span>6h</span>
+                  <span>12h</span>
+                  <span>24h</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
