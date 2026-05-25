@@ -44,15 +44,17 @@ async def _scrape_startup_covers(downloader):
     entries = get_tracked_without_covers()
     if not entries:
         return
-    print(f"[STARTUP] Fetching cover images for {len(entries)} tracked series...")
-    for entry in entries:
+    print(f"[STARTUP] Fetching covers for {len(entries)} tracked series...")
+    for i, entry in enumerate(entries):
         try:
-            metadata = await asyncio.to_thread(downloader.get_series_metadata, entry["series_id"])
+            metadata = await asyncio.to_thread(downloader.metadata.get_series_metadata, entry["series_id"])
             if metadata.get("coverUrl"):
                 update_cover_url(entry["series_id"], metadata["coverUrl"])
             save_series_metadata(entry["series_id"], metadata)
         except Exception:
             pass
+        if i < len(entries) - 1:
+            await asyncio.sleep(3)
     print("[STARTUP] Cover fetch complete")
 
 
