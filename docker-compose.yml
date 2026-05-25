@@ -9,11 +9,12 @@ services:
       - "8000:8000"
     volumes:
       - ./config.toml:/app/config.toml
+      # manga_downloads is BOTH the download destination AND the library source.
+      # Downloaded manga appear in the Library reader automatically — no extra setup.
       - ./manga_downloads:/app/manga_downloads
       - ./weebcentral.db:/app/weebcentral.db
-      # Library mount: symlink or copy manga folders into ./library on the host.
-      # They appear at /app/library in the container for the Library reader.
-      # Add "/app/library" to library_paths in config.toml or Settings UI.
+      # OPTIONAL: mount external manga collections you already have (not downloaded by this tool).
+      # Add "/app/library" to library_paths in config.toml or Settings UI to include them.
       - ./library:/app/library:ro
     environment:
       - CONFIG_FILE=config.toml

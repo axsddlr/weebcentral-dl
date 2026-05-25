@@ -23,7 +23,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+    uv sync --frozen --no-dev --no-editable --system
 
 # Copy backend source
 COPY src/ ./src/

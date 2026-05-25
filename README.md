@@ -63,7 +63,11 @@ docker-compose --profile watcher up -d  # + auto-download watcher
 
 For local builds, use `build: .` in `docker-compose.yml`.
 
-To read existing manga collections from other host folders, drop them into the `./library` directory:
+### How the Library works
+
+The Library reader scans `manga_downloads/` by default — **the same folder the downloader writes to**. Downloaded manga appear in the Library automatically. No moving files, no extra config.
+
+To also read manga collections you already have from other sources (not downloaded by this tool), mount them separately:
 
 ```bash
 mkdir library
@@ -87,7 +91,7 @@ The folder structure should be `<manga_series>/<vol_001.cbz or chapter.cbz>`. Th
 
 ## Library Reader
 
-The Library page scans your output directory and any additional folders configured in `library_paths`. Supports `.cbz`/`.zip` archives. Reading modes: long-strip, single page, double page. Keyboard navigation, zoom, fit modes, light/dark theme.
+The Library page scans `manga_downloads/` (your download destination) plus any extra folders in `library_paths`. Supports `.cbz`/`.zip` archives. Reading modes: long-strip, single page, double page. Keyboard navigation, zoom, fit modes, light/dark theme.
 
 Add external collections via Settings > Library Paths (use **container paths** in Docker, **host paths** when running locally).
 
