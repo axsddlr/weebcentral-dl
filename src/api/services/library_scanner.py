@@ -130,8 +130,9 @@ def scan_chapters(output_dir: str, series_dir: str) -> list[dict]:
         if not f.lower().endswith(('.cbz', '.zip')):
             continue
 
+        chapter_path = os.path.join(series_path, f)
         chapter_num = _extract_chapter_number(f, series_dir)
-        page_count = _count_pages_in_archive(os.path.join(series_path, f))
+        page_count = _count_pages_in_archive(chapter_path)
 
         chapters.append({
             "id": f,
@@ -139,6 +140,7 @@ def scan_chapters(output_dir: str, series_dir: str) -> list[dict]:
             "filename": f,
             "totalPages": page_count,
             "path": f,
+            "mtime": os.path.getmtime(chapter_path),
         })
 
     # Sort by chapter number

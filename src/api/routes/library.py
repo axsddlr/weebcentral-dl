@@ -28,6 +28,18 @@ async def refresh_library(request: Request):
     return {"series": await cache.get_library()}
 
 
+@router.get("/library/recent")
+async def recent_chapters(request: Request):
+    """Get most recently downloaded chapters across all series."""
+    limit = request.query_params.get("limit", 20)
+    try:
+        limit = int(limit)
+    except (ValueError, TypeError):
+        limit = 20
+    cache = request.app.state.library_cache
+    return {"chapters": await cache.get_recent_chapters(limit)}
+
+
 @router.get("/library/{series_dir}/chapters")
 async def list_chapters(request: Request, series_dir: str):
     """List chapters in a series."""

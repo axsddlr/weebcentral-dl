@@ -13,16 +13,29 @@ import * as api from '@/services/api';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { StatusIcon, StatusBadge } from '@/components/StatusBadge';
 
+function timeAgo(mtime: number): string {
+  const seconds = Math.floor((Date.now() - mtime * 1000) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(mtime * 1000).toLocaleDateString();
+}
+
 export function Dashboard() {
   const [stats, setStats] = useState<api.DashboardStats | null>(null);
   const [queue, setQueue] = useState<api.QueueState | null>(null);
+  const [recent, setRecent] = useState<api.RecentChapter[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [s, q] = await Promise.all([api.getStats(), api.getQueue()]);
-        if (!cancelled) { setStats(s); setQueue(q); }
+        const [s, q, r] = await Promise.all([api.getStats(), api.getQueue(), api.getRecentChapters(10)]);
+        if (!cancelled) { setStats(s); setQueue(q); setRecent(r); }
       } catch (e) {
         if (!cancelled) console.error('Failed to fetch dashboard data:', e);
       }
@@ -36,6 +49,7 @@ export function Dashboard() {
       if (msg.type === 'queue_update') {
         setQueue(msg.data as api.QueueState);
         api.getStats().then(setStats).catch(() => {});
+        api.getRecentChapters(10).then(setRecent).catch(() => {});
       }
     },
   });
@@ -114,7 +128,7 @@ export function Dashboard() {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Active Downloads</CardTitle>
@@ -152,7 +166,7 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Downloads</CardTitle>
+            <CardTitle>Queue History</CardTitle>
             <CardDescription>Recently completed downloads</CardDescription>
           </CardHeader>
           <CardContent>
@@ -174,6 +188,42 @@ export function Dashboard() {
                 ))}
                 {completedTasks.length === 0 && (
                   <p className="text-center text-muted-foreground py-4">No completed downloads yet</p>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recently Downloaded</CardTitle>
+            <CardDescription>Latest chapters in your library</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[280px]">
+              <div className="space-y-3">
+                {recent.map((ch) => (
+                  <div key={`${ch.series_path}-${ch.id}`} className="flex items-center gap-3 py-2">
+                    <div className="w-10 h-14 bg-muted rounded overflow-hidden flex-shrink-0">
+                      {ch.cover_url ? (
+                        <img src={ch.cover_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{ch.series_title}</p>
+                      <p className="text-xs text-muted-foreground">Ch. {ch.number}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {ch.mtime ? timeAgo(ch.mtime) : ''}
+                    </span>
+                  </div>
+                ))}
+                {recent.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">No downloads yet</p>
                 )}
               </div>
             </ScrollArea>

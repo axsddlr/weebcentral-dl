@@ -169,6 +169,13 @@ export interface LibraryChapter {
   filename: string;
   totalPages: number;
   path: string;
+  mtime?: number;
+}
+
+export interface RecentChapter extends LibraryChapter {
+  series_title: string;
+  series_path: string;
+  cover_url?: string | null;
 }
 
 export async function getLibrary(): Promise<LibrarySeries[]> {
@@ -185,6 +192,11 @@ export async function getLibraryChapters(seriesDir: string): Promise<LibraryChap
   const data = await request<{ chapters: LibraryChapter[] }>(
     `/api/library/${encodeURIComponent(seriesDir)}/chapters`
   );
+  return data.chapters;
+}
+
+export async function getRecentChapters(limit = 20): Promise<RecentChapter[]> {
+  const data = await request<{ chapters: RecentChapter[] }>(`/api/library/recent?limit=${limit}`);
   return data.chapters;
 }
 

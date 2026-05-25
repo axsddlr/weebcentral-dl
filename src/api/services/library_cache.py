@@ -78,6 +78,20 @@ class LibraryCache:
         self._chapters_cache[series_dir] = (data, now)
         return data
 
+    async def get_recent_chapters(self, limit: int = 20) -> list[dict]:
+        """Get most recently downloaded chapters across all library dirs."""
+        library = await self.get_library()
+        recent = []
+        for series in library:
+            chapters = await self.get_chapters(series["path"])
+            for ch in chapters:
+                ch["series_title"] = series["title"]
+                ch["series_path"] = series["path"]
+                ch["cover_url"] = series.get("coverUrl")
+                recent.append(ch)
+        recent.sort(key=lambda c: c.get("mtime", 0), reverse=True)
+        return recent[:limit]
+
     async def get_dir_size(self) -> int:
         now = time.time()
         if self._size_data is not None and now - self._size_time < self._size_ttl:
