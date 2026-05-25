@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import {
   Trash2, Download, Upload, RefreshCw, Loader2,
-  BookOpen, Search,
+  BookOpen, Search, Play,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ export function Tracked() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [importing, setImporting] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   const fetchTracked = async () => {
     try {
@@ -69,6 +70,18 @@ export function Tracked() {
     }
   };
 
+  const handleCheck = async () => {
+    setChecking(true);
+    try {
+      await api.checkTracked();
+      toast.success("Checking tracked manga for new chapters...");
+    } catch {
+      toast.error("Failed to start check");
+    } finally {
+      setChecking(false);
+    }
+  };
+
   const filtered = tracked.filter(s =>
     s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.series_id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -90,9 +103,13 @@ export function Tracked() {
           <p className="text-muted-foreground">Manage your followed series for bulk downloading</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCheck} disabled={checking}>
+            {checking ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+            Check Now
+          </Button>
           <Button variant="outline" onClick={handleImport} disabled={importing}>
             {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-            Import manga_list.txt
+            Import
           </Button>
           <Button variant="outline" onClick={fetchTracked}>
             <RefreshCw className="h-4 w-4 mr-2" /> Refresh

@@ -4,6 +4,7 @@ import asyncio
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 
+from src.cli import process_tracked_mode
 from src.database import (
     get_all_tracked, add_tracked, remove_tracked, count_tracked,
     import_from_file, update_cover_url, get_tracked_without_covers,
@@ -46,6 +47,18 @@ async def remove_tracked_manga(request: Request, series_id: str):
     if not remove_tracked(series_id):
         raise HTTPException(status_code=404, detail="Series not found")
     return {"removed": True}
+
+
+@router.post("/tracked/check")
+async def check_tracked(request: Request):
+    """Check all tracked manga for new chapters (background)."""
+    downloader = request.app.state.downloader
+
+    async def _run_check():
+        await asyncio.to_thread(process_tracked_mode, downloader, None)
+
+    asyncio.create_task(_run_check())
+    return {"status": "check_started"}
 
 
 @router.post("/tracked/import")

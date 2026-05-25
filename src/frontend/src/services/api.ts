@@ -339,3 +339,7 @@ export async function removeTracked(seriesId: string): Promise<void> {
 export async function importTracked(): Promise<{ added: number; skipped: number }> {
   return request('/api/tracked/import', { method: 'POST' });
 }
+
+export async function checkTracked(): Promise<{ status: string }> {
+  return request('/api/tracked/check', { method: 'POST' });
+}
