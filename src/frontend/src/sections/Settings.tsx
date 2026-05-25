@@ -221,7 +221,9 @@ export function Settings() {
                         ? 'Disabled'
                         : config.checkInterval < 60
                           ? `${config.checkInterval}m`
-                          : `${(config.checkInterval / 60).toFixed(0)}h`}
+                          : config.checkInterval % 60 === 0
+                            ? `${config.checkInterval / 60}h`
+                            : `${Math.floor(config.checkInterval / 60)}h ${config.checkInterval % 60}m`}
                     </span>
                   </div>
                 </div>
@@ -230,12 +232,14 @@ export function Settings() {
                   onValueChange={([value]) => handleChange('checkInterval', value)}
                   min={0}
                   max={1440}
-                  step={15}
+                  step={5}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Off</span>
                   <span>15m</span>
+                  <span>30m</span>
                   <span>1h</span>
+                  <span>3h</span>
                   <span>6h</span>
                   <span>12h</span>
                   <span>24h</span>
