@@ -156,11 +156,15 @@ Once `API_TOKEN` is set:
 
 | Access type | Protected? | How to authenticate |
 |-------------|-----------|-------------------|
-| Web UI (browser) | State-changing actions only | Automatic — token is sent automatically by the UI |
+| Web UI (browser) | State-changing actions only | Enter token in Settings → API Token field (stored in browser) |
 | HTTP API (curl) | All POST/PUT/DELETE routes | Pass `X-API-Token: your-secret-token` header or `?token=your-secret-token` query param |
 | WebSocket (live updates) | All WebSocket connections | Pass `?token=your-secret-token` query param in the WebSocket URL |
 | GET routes (library, reader, search) | **Not** protected | Public read access — covers, chapters, and search are open |
 | CLI / local usage | **Not** protected | Only enforced over HTTP; local Python usage is unaffected |
+
+### Browser setup
+
+Open the Web UI, go to **Settings → Advanced → API Token** and enter your token. It's saved in your browser's `localStorage` and sent automatically on all requests (as `X-API-Token` header for HTTP, `?token=` query param for WebSocket).
 
 ### API examples
 
@@ -179,6 +183,18 @@ curl -X POST "http://localhost:8000/api/tracked/import?token=your-secret-token"
 # In JavaScript:
 #   new WebSocket(`ws://localhost:8000/ws/queue?token=${token}`)
 ```
+
+## Environment Variables
+
+All configuration is optional — default values are used if not set.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_TOKEN` | (none) | If set, all non-GET API routes and WebSocket connections require this token |
+| `HOST` | (none) | Server hostname/domain for CORS allowlist (for remote access) |
+| `CONFIG_FILE` | `config.toml` | Path to TOML configuration file |
+| `MANGA_LIST` | `manga_list.txt` | Path to manga list file for the file-based watcher |
+| `WATCH_TRACKED` | (none) | Set to `true` to watch the SQLite-tracked database instead of a file list |
 
 ## Development
 
