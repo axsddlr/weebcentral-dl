@@ -8,6 +8,7 @@ from src.api.routes.config_routes import router as config_router
 from src.api.routes.stats import router as stats_router
 from src.api.routes.logs import router as logs_router
 from src.api.routes.tracked import router as tracked_router
+from src.api.routes.auth import router as auth_router
 
 
 api_router = APIRouter(prefix="/api")
@@ -19,3 +20,4 @@ api_router.include_router(config_router)
 api_router.include_router(stats_router)
 api_router.include_router(logs_router)
 api_router.include_router(tracked_router)
+api_router.include_router(auth_router)

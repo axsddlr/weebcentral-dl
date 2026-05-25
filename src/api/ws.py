@@ -39,11 +39,11 @@ class ConnectionManagers:
 
 
 async def _verify_ws_token(websocket: WebSocket) -> bool:
-    """Check API_TOKEN on WebSocket upgrade via query param."""
-    token = os.getenv("API_TOKEN")
-    if not token:
+    """Check API_TOKEN via httpOnly cookie (sent automatically on handshake)."""
+    expected = os.getenv("API_TOKEN")
+    if not expected:
         return True
-    return websocket.query_params.get("token") == token
+    return websocket.cookies.get("api_token") == expected
 
 
 async def _ws_handler(websocket: WebSocket, mgr: ConnectionManager):

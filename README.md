@@ -156,15 +156,15 @@ Once `API_TOKEN` is set:
 
 | Access type | Protected? | How to authenticate |
 |-------------|-----------|-------------------|
-| Web UI (browser) | State-changing actions only | Enter token in Settings → API Token field (stored in browser) |
-| HTTP API (curl) | All POST/PUT/DELETE routes | Pass `X-API-Token: your-secret-token` header or `?token=your-secret-token` query param |
-| WebSocket (live updates) | All WebSocket connections | Pass `?token=your-secret-token` query param in the WebSocket URL |
+| Web UI (browser) | State-changing actions only | Enter token in Settings → API Authentication (sent as httpOnly cookie) |
+| HTTP API (curl) | All POST/PUT/DELETE routes | Pass `X-API-Token: your-secret-token` header |
+| WebSocket (live updates) | All WebSocket connections | Cookie sent automatically on handshake |
 | GET routes (library, reader, search) | **Not** protected | Public read access — covers, chapters, and search are open |
 | CLI / local usage | **Not** protected | Only enforced over HTTP; local Python usage is unaffected |
 
 ### Browser setup
 
-Open the Web UI, go to **Settings → Advanced → API Token** and enter your token. It's saved in your browser's `localStorage` and sent automatically on all requests (as `X-API-Token` header for HTTP, `?token=` query param for WebSocket).
+Open the Web UI, go to **Settings → Advanced → API Authentication**, enter your token, and click **Login**. The backend sets an **httpOnly cookie** — JavaScript can't read it, preventing XSS-based token theft. The cookie is sent automatically with all subsequent requests and WebSocket handshakes. Click **Logout** to clear it.
 
 ### API examples
 
@@ -177,11 +177,18 @@ curl http://localhost:8000/api/stats
 curl -X POST http://localhost:8000/api/library/refresh \
   -H "X-API-Token: your-secret-token"
 
-curl -X POST "http://localhost:8000/api/tracked/import?token=your-secret-token"
+curl -X POST http://localhost:8000/api/tracked/import \
+  -H "X-API-Token: your-secret-token"
 
-# WebSocket with auth
-# In JavaScript:
-#   new WebSocket(`ws://localhost:8000/ws/queue?token=${token}`)
+# Login (sets httpOnly cookie for browser sessions)
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"token":"your-secret-token"}' \
+  -c cookies.txt
+
+# Subsequent requests with cookie
+curl -X POST http://localhost:8000/api/library/refresh \
+  -b cookies.txt
 ```
 
 ## Environment Variables

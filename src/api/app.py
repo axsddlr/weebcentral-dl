@@ -21,18 +21,16 @@ from src.utils import resolve_safe_path
 
 
 async def verify_api_token(request: Request):
-    """Simple middleware to check for API token in headers or query."""
-    token = os.getenv("API_TOKEN")
-    if not token:
+    """Check API_TOKEN in header or httpOnly cookie for non-GET API routes."""
+    expected = os.getenv("API_TOKEN")
+    if not expected:
         return
 
-    # Skip auth for read-only routes if we want, but task says protect state-changing routes
-    # For now, let's keep it simple: if API_TOKEN is set, all non-GET API routes need it.
     if request.method != "GET" and request.url.path.startswith("/api/"):
-        header_token = request.headers.get("X-API-Token")
-        query_token = request.query_params.get("token")
-        
-        if header_token != token and query_token != token:
+        header_token = request.headers.get("X-API-Token", "")
+        cookie_token = request.cookies.get("api_token", "")
+
+        if header_token != expected and cookie_token != expected:
             from fastapi import HTTPException
             raise HTTPException(status_code=401, detail="Unauthorized")
 

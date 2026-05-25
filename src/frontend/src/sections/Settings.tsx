@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Loader2, Plus, X, FolderOpen } from 'lucide-react';
+import { Save, RotateCcw, Loader2, Plus, X, FolderOpen, LogOut } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,17 @@ export function Settings() {
   const [newLibraryPath, setNewLibraryPath] = useState('');
   const [maintenanceDryRun, setMaintenanceDryRun] = useState(true);
   const [runningMaintenance, setRunningMaintenance] = useState<null | 'add-covers' | 'migrate-covers'>(null);
-  const [apiToken, setApiToken] = useState(() => { try { return localStorage.getItem('apiToken') ?? ''; } catch { return ''; } });
+  const [authToken, setAuthToken] = useState('');
+  const [authEnabled, setAuthEnabled] = useState(false);
+  const [authAuthenticated, setAuthAuthenticated] = useState(false);
+  const [authLoggingIn, setAuthLoggingIn] = useState(false);
+
+  useEffect(() => {
+    api.getAuthStatus().then(s => {
+      setAuthEnabled(s.enabled);
+      setAuthAuthenticated(s.authenticated);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.getConfig().then(c => {
@@ -315,27 +325,75 @@ export function Settings() {
 
           <Card>
             <CardHeader>
-              <CardTitle>API Token</CardTitle>
-              <CardDescription>Authentication token for API requests (stored in browser)</CardDescription>
+              <CardTitle>API Authentication</CardTitle>
+              <CardDescription>
+                {authEnabled
+                  ? (authAuthenticated ? 'Authenticated' : 'Not authenticated')
+                  : 'No API_TOKEN configured on the server'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="api-token">API Token</Label>
-                <Input
-                  id="api-token"
-                  type="password"
-                  value={apiToken}
-                  onChange={(e) => {
-                    setApiToken(e.target.value);
-                    try { localStorage.setItem('apiToken', e.target.value); } catch { /* ignore */ }
-                  }}
-                  placeholder="Set if API_TOKEN is configured on the server"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Required only if the server has <code>API_TOKEN</code> set. Stored in your browser's local storage.
-                  Passed as <code>X-API-Token</code> header in HTTP requests and <code>?token=</code> in WebSocket URLs.
+              {authEnabled && !authAuthenticated && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-token">Enter API Token</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="auth-token"
+                        type="password"
+                        value={authToken}
+                        onChange={(e) => setAuthToken(e.target.value)}
+                        placeholder="Enter your API token"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && authToken && !authLoggingIn) {
+                            setAuthLoggingIn(true);
+                            api.login(authToken).then(() => {
+                              setAuthAuthenticated(true);
+                              setAuthToken('');
+                              toast.success('Authenticated successfully');
+                            }).catch(() => toast.error('Invalid token')).finally(() => setAuthLoggingIn(false));
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={() => {
+                          setAuthLoggingIn(true);
+                          api.login(authToken).then(() => {
+                            setAuthAuthenticated(true);
+                            setAuthToken('');
+                            toast.success('Authenticated successfully');
+                          }).catch(() => toast.error('Invalid token')).finally(() => setAuthLoggingIn(false));
+                        }}
+                        disabled={!authToken || authLoggingIn}
+                      >
+                        {authLoggingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Login'}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Token is stored in an httpOnly cookie — not accessible to JavaScript.
+                    Set <code>API_TOKEN</code> in the server's <code>.env</code> to enable authentication.
+                  </p>
+                </div>
+              )}
+              {authEnabled && authAuthenticated && (
+                <div className="space-y-3">
+                  <p className="text-sm text-green-600 dark:text-green-400">Authenticated</p>
+                  <Button variant="outline" onClick={async () => {
+                    await api.logout();
+                    setAuthAuthenticated(false);
+                    toast.success('Logged out');
+                  }}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                </div>
+              )}
+              {!authEnabled && (
+                <p className="text-sm text-muted-foreground">
+                  Authentication is not enabled. Set <code>API_TOKEN</code> in <code>.env</code> to protect the API.
                 </p>
-              </div>
+              )}
             </CardContent>
           </Card>
 

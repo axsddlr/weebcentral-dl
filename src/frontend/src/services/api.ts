@@ -12,22 +12,20 @@ interface RequestOptions extends RequestInit {
   timeout?: number;
 }
 
-function getApiToken(): string | null {
-  try {
-    return localStorage.getItem('apiToken');
-  } catch {
-    return null;
-  }
+export async function login(token: string): Promise<{ status: string }> {
+  return request('/api/auth/login', { method: 'POST', body: JSON.stringify({ token }) });
+}
+
+export async function logout(): Promise<{ status: string }> {
+  return request('/api/auth/logout', { method: 'POST' });
+}
+
+export async function getAuthStatus(): Promise<{ enabled: boolean; authenticated: boolean }> {
+  return request('/api/auth/status');
 }
 
 async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = getApiToken();
-  if (token) {
-    headers['X-API-Token'] = token;
-  }
 
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
@@ -36,7 +34,7 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
 
     try {
       const res = await fetch(`${BASE}${path}`, {
-        headers: { ...headers, ...(fetchOptions.headers as Record<string, string> | undefined) },
+        headers: { 'Content-Type': 'application/json', ...(fetchOptions.headers as Record<string, string> | undefined) },
         ...fetchOptions,
         signal: controller.signal,
       });
