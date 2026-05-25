@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import api_router
@@ -123,7 +123,7 @@ def create_app() -> FastAPI:
             while bucket and bucket[0] < cutoff:
                 bucket.pop(0)
             if len(bucket) >= _rate_limit:
-                raise HTTPException(status_code=429, detail="Too many requests")
+                return JSONResponse(status_code=429, content={"detail": "Too many requests"})
             bucket.append(now)
         return await call_next(request)
 
