@@ -12,7 +12,7 @@ _log = logging.getLogger("auth")
 def _get_expected_token() -> str | None:
     token = os.getenv("API_TOKEN")
     if token:
-        token = token.strip()
+        token = token.strip().strip("'\"")
     return token if token else None
 
 
