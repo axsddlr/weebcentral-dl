@@ -2,7 +2,7 @@ cloudscraper==1.2.71
 Pillow==11.3.0
 loguru==0.7.3
 watchdog==4.0.1
-tomli==2.2.1
+tomli==2.4.1
 fastapi==0.136.3
 uvicorn[standard]==0.42.0
 tomli-w==1.2.0
