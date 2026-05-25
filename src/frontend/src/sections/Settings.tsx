@@ -285,6 +285,14 @@ export function Settings() {
                 </div>
                 <Slider value={[config.maxRetries]} onValueChange={([value]) => handleChange('maxRetries', value)} min={1} max={10} step={1} />
               </div>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <Label>Parallel Workers</Label>
+                  <span className="text-sm font-medium">{config.parallelWorkers} workers</span>
+                </div>
+                <Slider value={[config.parallelWorkers]} onValueChange={([value]) => handleChange('parallelWorkers', value)} min={1} max={99} step={1} />
+              </div>
             </CardContent>
           </Card>
 
