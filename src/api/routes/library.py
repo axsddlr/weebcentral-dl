@@ -18,6 +18,14 @@ async def list_library(request: Request):
     return {"series": await cache.get_library()}
 
 
+@router.post("/library/refresh")
+async def refresh_library(request: Request):
+    """Invalidate library cache and trigger a fresh scan."""
+    cache = request.app.state.library_cache
+    cache.invalidate_all()
+    return {"series": await cache.get_library()}
+
+
 @router.get("/library/{series_dir}/chapters")
 async def list_chapters(request: Request, series_dir: str):
     """List chapters in a series."""

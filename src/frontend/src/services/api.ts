@@ -164,6 +164,11 @@ export async function getLibrary(): Promise<LibrarySeries[]> {
   return data.series;
 }
 
+export async function refreshLibrary(): Promise<LibrarySeries[]> {
+  const data = await request<{ series: LibrarySeries[] }>('/api/library/refresh', { method: 'POST' });
+  return data.series;
+}
+
 export async function getLibraryChapters(seriesDir: string): Promise<LibraryChapter[]> {
   const data = await request<{ chapters: LibraryChapter[] }>(
     `/api/library/${encodeURIComponent(seriesDir)}/chapters`

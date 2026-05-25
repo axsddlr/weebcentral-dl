@@ -7,7 +7,8 @@ import {
   Grid3X3,
   List,
   Trash2,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
   const [chapters, setChapters] = useState<api.LibraryChapter[]>([]);
   const [showChaptersDialog, setShowChaptersDialog] = useState(false);
   const [loadingChapters, setLoadingChapters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchLibrary = async () => {
     try {
@@ -48,6 +50,19 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
       console.error('Failed to fetch library:', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const data = await api.refreshLibrary();
+      setLibrary(data);
+      toast.success('Library refreshed');
+    } catch {
+      toast.error('Failed to refresh library');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -123,6 +138,9 @@ export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
           <h1 className="text-2xl font-bold tracking-tight">Library</h1>
           <p className="text-muted-foreground">Browse and read your downloaded manga collection</p>
         </div>
+        <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing}>
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
 
       <div className="flex gap-3">
