@@ -13,7 +13,7 @@ class MetadataExtractor:
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
         metadata = {
             "title": "", "description": "", "authors": [], "tags": [],
-            "coverUrl": None, "status": "", "type": "",
+            "coverUrl": None, "status": "", "type": "", "release_year": "",
             "anime_adaptation": False, "official_translation": False, "adult": False,
         }
         try:
@@ -66,19 +66,18 @@ class MetadataExtractor:
     @staticmethod
     def _parse_series_info(text: str) -> dict:
         result = {}
-        status_m = re.search(
-            r'<strong[^>]*>[^<]*Status[^<]*</strong>\s*<[^>]*>([^<]+)</',
-            text, re.IGNORECASE
-        )
-        if status_m:
-            result["status"] = status_m.group(1).strip().lower()
 
-        type_m = re.search(
-            r'<strong[^>]*>[^<]*Type[^<]*</strong>\s*<[^>]*>([^<]+)</',
-            text, re.IGNORECASE
-        )
-        if type_m:
-            result["type"] = type_m.group(1).strip().lower()
+        def _extract(label: str) -> str | None:
+            m = re.search(
+                rf'<strong[^>]*>[^<]*{re.escape(label)}[^<]*</strong>\s*<[^>]*>([^<]+)</',
+                text, re.IGNORECASE
+            )
+            return m.group(1).strip() if m else None
+
+        for field, label in [("status", "Status"), ("type", "Type"), ("release_year", "Released")]:
+            val = _extract(label)
+            if val:
+                result[field] = val.lower() if field != "release_year" else val
 
         for flag, label in [("anime_adaptation", "Anime"), ("official_translation", "Official"), ("adult", "Adult")]:
             if re.search(rf'<strong[^>]*>[^<]*{label}[^<]*</strong>\s*<[^>]*>\s*Yes\s*<', text, re.IGNORECASE):

@@ -36,6 +36,7 @@ def build_comicinfo_xml(
     add("Status", metadata.get("status", "").capitalize())
     add("Count", metadata.get("total_chapters", ""))
     add("AgeRating", "Adult" if metadata.get("adult") else "Unknown")
+    add("Year", metadata.get("release_year", ""))
     add("Publisher", "Webcomic" if metadata.get("type") == "Webcomic" else metadata.get("publisher", ""))
 
     if metadata.get("anime_adaptation"):

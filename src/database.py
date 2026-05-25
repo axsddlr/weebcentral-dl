@@ -45,12 +45,17 @@ def _init_db(conn: sqlite3.Connection):
             tags TEXT DEFAULT '[]',
             status TEXT DEFAULT '',
             type TEXT DEFAULT '',
+            release_year TEXT DEFAULT '',
             anime_adaptation INTEGER DEFAULT 0,
             official_translation INTEGER DEFAULT 0,
             adult INTEGER DEFAULT 0,
             updated_at TEXT NOT NULL
         )
     """)
+    try:
+        conn.execute("ALTER TABLE series_metadata ADD COLUMN release_year TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS reading_progress (
@@ -118,8 +123,8 @@ def save_series_metadata(series_id: str, metadata: dict) -> bool:
             conn.execute("""
                 INSERT OR REPLACE INTO series_metadata
                     (series_id, description, authors, tags, status, type,
-                     anime_adaptation, official_translation, adult, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     release_year, anime_adaptation, official_translation, adult, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 series_id.upper(),
                 metadata.get("description", ""),
@@ -127,6 +132,7 @@ def save_series_metadata(series_id: str, metadata: dict) -> bool:
                 json.dumps(metadata.get("tags", [])),
                 metadata.get("status", ""),
                 metadata.get("type", ""),
+                metadata.get("release_year", ""),
                 int(metadata.get("anime_adaptation", False)),
                 int(metadata.get("official_translation", False)),
                 int(metadata.get("adult", False)),
