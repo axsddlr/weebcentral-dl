@@ -1,5 +1,7 @@
 """Reader routes: serve manga pages from archives."""
+import io
 import os
+import time
 import asyncio
 import mimetypes
 import traceback
@@ -10,6 +12,12 @@ from fastapi.responses import Response
 from src.api.services.library_scanner import get_archive_pages, read_page_by_index, get_cover_path, read_cover_bytes
 from src.database import save_reading_progress, get_all_reading_progress
 from src.logging_utils import logger
+
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 router = APIRouter(tags=["reader"])
 
@@ -69,6 +77,47 @@ async def get_cover(request: Request, series_dir: str):
     except Exception:
         logger.error(f"get_cover failed for series_dir={series_dir}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to serve cover")
+
+
+_thumb_cache: dict[str, tuple[bytes, float]] = {}
+_THUMB_TTL = 300
+
+
+@router.get("/reader/{series_dir}/thumbnail")
+async def get_thumbnail(request: Request, series_dir: str):
+    """Serve a small WebP thumbnail for a series cover."""
+    now = time.time()
+    cached = _thumb_cache.get(series_dir)
+    if cached and now - cached[1] < _THUMB_TTL:
+        return Response(content=cached[0], media_type="image/webp")
+
+    try:
+        cache = request.app.state.library_cache
+        root_dir, entry = cache.resolve_path(series_dir)
+        cover_path = await asyncio.to_thread(get_cover_path, root_dir, entry)
+
+        if not cover_path or not os.path.exists(cover_path):
+            raise HTTPException(status_code=404, detail="Cover not found")
+
+        data = await asyncio.to_thread(read_cover_bytes, cover_path)
+        if data is None:
+            raise HTTPException(status_code=404, detail="Failed to read cover")
+
+        if HAS_PIL:
+            img = Image.open(io.BytesIO(data))
+            img.thumbnail((200, 300))
+            buf = io.BytesIO()
+            img.save(buf, format="WEBP", quality=75)
+            webp_data = buf.getvalue()
+            _thumb_cache[series_dir] = (webp_data, now)
+            return Response(content=webp_data, media_type="image/webp")
+
+        return Response(content=data, media_type=mimetypes.guess_type(cover_path)[0] or "image/jpeg")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.error(f"get_thumbnail failed for series_dir={series_dir}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to serve thumbnail")
 
 
 @router.get("/reader/{series_dir}/progress")
