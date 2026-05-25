@@ -31,8 +31,7 @@ class WeebCentralDownloader:
         )
         self.cover_manager = CoverManager(self.http, self.image_downloader, os.path.abspath(config.output_dir))
         self.archiver = Archiver(self.cover_manager, os.path.abspath(config.output_dir),
-                              getattr(config, 'zip', False),
-                              getattr(config, 'naming_scheme', 'flat'))
+                              getattr(config, 'zip', False))
         self.orchestrator = DownloadOrchestrator(
             config, self.http, self.series_resolver, self.chapter_fetcher,
             self.chapter_tracker, self.image_downloader, self.cover_manager, self.archiver, self.metadata,

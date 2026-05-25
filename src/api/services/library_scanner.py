@@ -259,17 +259,17 @@ def _find_cover(series_path: str) -> Optional[str]:
 
 def _extract_chapter_number(filename: str, series_dir: str) -> str:
     """Extract chapter number from archive filename."""
-    # CBZ format: series-title-N.cbz or series-title-N-Type.cbz
-    cbz_match = re.search(rf'{re.escape(series_dir)}-(\d+(?:\.\d+)?)', filename)
-    if cbz_match:
-        return cbz_match.group(1)
-
-    # ZIP format: vol_NNN.zip or vol_N-N.zip
-    vol_match = re.search(r'vol_0*(\d+)(?:-(\d+))?\.zip$', filename)
+    # vol_NNN.ext or vol_N-N.ext (new naming)
+    vol_match = re.search(r'vol_0*(\d+)(?:-(\d+))?\.(?:zip|cbz)$', filename)
     if vol_match:
         if vol_match.group(2):
             return f"{vol_match.group(1)}.{vol_match.group(2)}"
         return vol_match.group(1)
+
+    # Legacy: series-title-N.cbz or series-title-N-Type.cbz
+    cbz_match = re.search(rf'{re.escape(series_dir)}-(\d+(?:\.\d+)?)', filename)
+    if cbz_match:
+        return cbz_match.group(1)
 
     return "0"
 

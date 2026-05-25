@@ -21,9 +21,8 @@ sequence = false
 # ============================================================================
 
 # Output format: false = .cbz (comic book zip), true = .zip
-# .cbz is recommended for comic book readers (Komga, Kavita, etc.)
 # Equivalent to: --zip / -z
-zip = false
+zip = true
 
 # ============================================================================
 # TITLE & NAMING OPTIONS
@@ -122,16 +121,6 @@ parallel_workers = 99
 # verbose = true
 # max_retries = 10
 # max_sleep = 300
-
-# ============================================================================
-# ARCHIVE NAMING SCHEME
-# ============================================================================
-
-# How chapter archives are named and organized:
-#   "flat"   — SeriesName/SeriesName-N.cbz (default, compatible with everything)
-#   "volume" — SeriesName/SeriesName v001/SeriesName v001 c001.cbz (Komga-style
-#              volume grouping, useful when you have many chapters per series)
-naming_scheme = "flat"
 
 # ============================================================================
 # EXTERNAL MEDIA SERVER (Optional)

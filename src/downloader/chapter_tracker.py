@@ -14,7 +14,7 @@ class ChapterTracker:
             return None
         chapter_nums = []
         patterns = [
-            re.compile(r"vol_0*(\d+)(?:-(\d+))?\.zip$"),
+            re.compile(r"vol_0*(\d+)(?:-(\d+))?\.(?:zip|cbz)$"),
             re.compile(rf"{re.escape(series_title)}-(\d+)(?:\.(\d+))?.*\.cbz$"),
         ]
         for f in os.listdir(out_dir):
@@ -38,14 +38,13 @@ class ChapterTracker:
         dec = None
         if "." in str(chap_num):
             dec = str(chap_num).split(".")[-1]
-        # ZIP: vol_NNN.zip or vol_N-N.zip
+        ext = "\.(?:zip|cbz)"
         if dec and dec != "0":
-            zip_patt = re.compile(rf"vol_0*{base}-0*{dec}\.zip$")
+            vol_patt = re.compile(rf"vol_0*{base}-0*{dec}{ext}$")
         else:
-            zip_patt = re.compile(rf"vol_0*{base}\.zip$")
-        if any(zip_patt.fullmatch(f) for f in files):
+            vol_patt = re.compile(rf"vol_0*{base}{ext}$")
+        if any(vol_patt.fullmatch(f) for f in files):
             return True
-        # CBZ: series_title-N.cbz or series_title-N-Type.cbz
         if series_title:
             cbz_patt = re.compile(rf"{re.escape(series_title)}-{base}(?:\.\d+)?.*\.cbz$")
             if any(cbz_patt.fullmatch(f) for f in files):

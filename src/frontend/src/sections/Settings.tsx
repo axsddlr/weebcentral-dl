@@ -273,29 +273,6 @@ export function Settings() {
                 </div>
                 <Switch checked={config.comicinfo} onCheckedChange={(checked) => handleChange('comicinfo', checked)} />
               </div>
-              <Separator />
-              <div className="space-y-3">
-                <Label>Archive Naming Scheme</Label>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant={config.namingScheme === 'flat' ? 'default' : 'outline'}
-                    onClick={() => handleChange('namingScheme', 'flat')}
-                  >
-                    Flat
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={config.namingScheme === 'volume' ? 'default' : 'outline'}
-                    onClick={() => handleChange('namingScheme', 'volume')}
-                  >
-                    Volume
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Flat: SeriesName/SeriesName-N.cbz · Volume: SeriesName/SeriesName vN/SeriesName vN cN.cbz
-                </p>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

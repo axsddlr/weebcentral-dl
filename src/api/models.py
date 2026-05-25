@@ -111,7 +111,6 @@ class ConfigResponse(BaseModel):
     parallelWorkers: int
     libraryPaths: list[str]
     checkInterval: int
-    namingScheme: str
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -128,7 +127,6 @@ class ConfigUpdateRequest(BaseModel):
     parallelWorkers: Optional[int] = Field(None, ge=1, le=200, description="Parallel download workers")
     libraryPaths: Optional[list[str]] = Field(None, description="Additional library directories to scan")
     checkInterval: Optional[int] = Field(None, ge=0, le=1440, description="Auto-check interval for tracked manga (minutes, 0=disabled)")
-    namingScheme: Optional[str] = Field(None, description="Naming scheme: flat or volume")
 
     @field_validator("outputDir")
     @classmethod

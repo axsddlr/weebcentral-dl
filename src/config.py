@@ -17,7 +17,7 @@ class DownloaderConfig:
     # Download options
     latest: bool = False
     sequence: bool = False
-    zip: bool = False
+    zip: bool = True
     verbose: bool = False
     use_english_title: bool = False
     comicinfo: bool = False
@@ -38,9 +38,6 @@ class DownloaderConfig:
     # Paths
     output_dir: str = "./manga_downloads"
     library_paths: List[str] = field(default_factory=list)
-
-    # Naming scheme for chapter archives: "flat" (SeriesName-N.cbz) or "volume" (SeriesName vN/SeriesName vN cN.cbz)
-    naming_scheme: str = "flat"
 
     # Auto-check interval for tracked manga (minutes, 0 = disabled)
     check_interval: int = 0
@@ -174,7 +171,7 @@ def save_config(config: DownloaderConfig, config_path: str | None = None):
     persistent_fields = {
         'latest', 'sequence', 'zip', 'verbose', 'use_english_title', 'comicinfo',
         'rlc', 'max_sleep', 'max_retries', 'parallel_workers', 'output_dir',
-        'library_paths', 'check_interval', 'naming_scheme',
+        'library_paths', 'check_interval',
     }
     config_dict = {k: v for k, v in asdict(config).items() if k in persistent_fields}
     toml_data = {'downloader': config_dict}

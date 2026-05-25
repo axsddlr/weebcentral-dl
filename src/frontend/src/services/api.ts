@@ -275,7 +275,6 @@ export interface AppConfig {
   parallelWorkers: number;
   libraryPaths: string[];
   checkInterval: number;
-  namingScheme: string;
 }
 
 export async function getConfig(): Promise<AppConfig> {
