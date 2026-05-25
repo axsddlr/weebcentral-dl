@@ -11,7 +11,11 @@ class MetadataExtractor:
 
     def get_series_metadata(self, series_id: str) -> dict:
         url = f"{WEEBCENTRAL_URL}/series/{series_id}"
-        metadata = {"title": "", "description": "", "authors": [], "tags": [], "coverUrl": None}
+        metadata = {
+            "title": "", "description": "", "authors": [], "tags": [],
+            "coverUrl": None, "status": "", "type": "",
+            "anime_adaptation": False, "official_translation": False, "adult": False,
+        }
         try:
             resp = self.http.request("GET", url)
             text = resp.text
@@ -24,6 +28,7 @@ class MetadataExtractor:
                 return metadata
             metadata.update(self._parse_metadata(text))
             metadata["coverUrl"] = self._extract_cover_url(text)
+            metadata.update(self._parse_series_info(text))
         except Exception as e:
             logger.warning(f"Could not extract metadata for series_id {series_id}: {type(e).__name__}: {e}")
         return metadata
@@ -55,6 +60,29 @@ class MetadataExtractor:
         if tags_section:
             result["tags"] = [html.unescape(t.strip())
                 for t in re.findall(r'<a[^>]*>([^<]+)</a>', tags_section.group(1))]
+
+        return result
+
+    @staticmethod
+    def _parse_series_info(text: str) -> dict:
+        result = {}
+        status_m = re.search(
+            r'<strong[^>]*>[^<]*Status[^<]*</strong>\s*<[^>]*>([^<]+)</',
+            text, re.IGNORECASE
+        )
+        if status_m:
+            result["status"] = status_m.group(1).strip().lower()
+
+        type_m = re.search(
+            r'<strong[^>]*>[^<]*Type[^<]*</strong>\s*<[^>]*>([^<]+)</',
+            text, re.IGNORECASE
+        )
+        if type_m:
+            result["type"] = type_m.group(1).strip().lower()
+
+        for flag, label in [("anime_adaptation", "Anime"), ("official_translation", "Official"), ("adult", "Adult")]:
+            if re.search(rf'<strong[^>]*>[^<]*{label}[^<]*</strong>\s*<[^>]*>\s*Yes\s*<', text, re.IGNORECASE):
+                result[flag] = True
 
         return result
 

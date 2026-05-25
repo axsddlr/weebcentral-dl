@@ -32,6 +32,25 @@ def _init_db(conn: sqlite3.Connection):
         conn.execute("ALTER TABLE tracked_manga ADD COLUMN cover_url TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        conn.execute("ALTER TABLE tracked_manga ADD COLUMN status TEXT DEFAULT 'reading'")
+    except sqlite3.OperationalError:
+        pass
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS series_metadata (
+            series_id TEXT PRIMARY KEY,
+            description TEXT DEFAULT '',
+            authors TEXT DEFAULT '[]',
+            tags TEXT DEFAULT '[]',
+            status TEXT DEFAULT '',
+            type TEXT DEFAULT '',
+            anime_adaptation INTEGER DEFAULT 0,
+            official_translation INTEGER DEFAULT 0,
+            adult INTEGER DEFAULT 0,
+            updated_at TEXT NOT NULL
+        )
+    """)
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS reading_progress (
@@ -45,13 +64,23 @@ def _init_db(conn: sqlite3.Connection):
     conn.commit()
 
 
-def add_tracked(series_id: str, title: str, cover_url: str | None = None) -> bool:
+def add_tracked(series_id: str, title: str, cover_url: str | None = None, status: str = "reading") -> bool:
     try:
         with _connect() as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO tracked_manga (series_id, title, added_at, cover_url) VALUES (?, ?, ?, ?)",
-                (series_id.upper(), title, datetime.utcnow().isoformat(), cover_url),
+                "INSERT OR REPLACE INTO tracked_manga (series_id, title, added_at, cover_url, status) VALUES (?, ?, ?, ?, ?)",
+                (series_id.upper(), title, datetime.utcnow().isoformat(), cover_url, status),
             )
+            conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def update_tracked_status(series_id: str, status: str) -> bool:
+    try:
+        with _connect() as conn:
+            conn.execute("UPDATE tracked_manga SET status = ? WHERE series_id = ?", (status, series_id.upper()))
             conn.commit()
         return True
     except sqlite3.Error:
@@ -68,13 +97,63 @@ def remove_tracked(series_id: str) -> bool:
         return False
 
 
-def get_all_tracked() -> list[dict]:
+def get_all_tracked(status: str | None = None) -> list[dict]:
     try:
         with _connect() as conn:
-            rows = conn.execute("SELECT * FROM tracked_manga ORDER BY added_at DESC").fetchall()
+            if status:
+                rows = conn.execute(
+                    "SELECT * FROM tracked_manga WHERE status = ? ORDER BY added_at DESC", (status,)
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM tracked_manga ORDER BY added_at DESC").fetchall()
         return [dict(r) for r in rows]
     except sqlite3.Error:
         return []
+
+
+def save_series_metadata(series_id: str, metadata: dict) -> bool:
+    try:
+        import json
+        with _connect() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO series_metadata
+                    (series_id, description, authors, tags, status, type,
+                     anime_adaptation, official_translation, adult, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                series_id.upper(),
+                metadata.get("description", ""),
+                json.dumps(metadata.get("authors", [])),
+                json.dumps(metadata.get("tags", [])),
+                metadata.get("status", ""),
+                metadata.get("type", ""),
+                int(metadata.get("anime_adaptation", False)),
+                int(metadata.get("official_translation", False)),
+                int(metadata.get("adult", False)),
+                datetime.utcnow().isoformat(),
+            ))
+            conn.commit()
+        return True
+    except sqlite3.Error:
+        return False
+
+
+def get_series_metadata(series_id: str) -> dict | None:
+    try:
+        import json
+        with _connect() as conn:
+            row = conn.execute("SELECT * FROM series_metadata WHERE series_id = ?", (series_id.upper(),)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["authors"] = json.loads(d.get("authors", "[]"))
+        d["tags"] = json.loads(d.get("tags", "[]"))
+        d["anime_adaptation"] = bool(d.get("anime_adaptation", 0))
+        d["official_translation"] = bool(d.get("official_translation", 0))
+        d["adult"] = bool(d.get("adult", 0))
+        return d
+    except sqlite3.Error:
+        return None
 
 
 def get_tracked(series_id: str) -> Optional[dict]:

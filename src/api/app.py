@@ -15,6 +15,7 @@ from src.api.routes import api_router
 from src.api.ws import ws_router, ConnectionManagers
 from src.api.services.queue_manager import QueueManager
 from src.api.services.library_cache import LibraryCache
+from src.api.services.library_watcher import LibraryWatcher
 from src.api.services.log_collector import LogCollector
 from src.config import load_config
 from src.database import import_from_file
@@ -39,7 +40,7 @@ async def verify_api_token(request: Request):
 
 
 async def _scrape_startup_covers(downloader):
-    from src.database import get_tracked_without_covers, update_cover_url
+    from src.database import get_tracked_without_covers, update_cover_url, save_series_metadata
     entries = get_tracked_without_covers()
     if not entries:
         return
@@ -49,6 +50,7 @@ async def _scrape_startup_covers(downloader):
             metadata = await asyncio.to_thread(downloader.get_series_metadata, entry["series_id"])
             if metadata.get("coverUrl"):
                 update_cover_url(entry["series_id"], metadata["coverUrl"])
+            save_series_metadata(entry["series_id"], metadata)
         except Exception:
             pass
     print("[STARTUP] Cover fetch complete")
@@ -88,7 +90,14 @@ async def lifespan(app: FastAPI):
     elif not os.getenv("MANGA_LIST"):
         print(f"[STARTUP] No {manga_list} found — tracked DB starts empty")
 
+    watch_dirs = [os.path.abspath(config.output_dir)] + [os.path.abspath(p) for p in config.library_paths]
+    library_watcher = LibraryWatcher(watch_dirs, library_cache.invalidate_all)
+    library_watcher.start()
+    if library_watcher.is_alive():
+        print(f"[STARTUP] Watching {len(watch_dirs)} library director{'y' if len(watch_dirs) == 1 else 'ies'} for changes")
+
     yield
+    library_watcher.stop()
     await queue_manager.stop()
     log_collector.uninstall()
 

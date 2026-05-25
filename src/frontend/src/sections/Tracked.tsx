@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import {
   Trash2, Download, Upload, RefreshCw, Loader2,
-  BookOpen, Search, Play,
+  BookOpen, Search, Play, CircleCheck, Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,14 @@ export function Tracked() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [importing, setImporting] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  const fetchTracked = async () => {
+  const fetchTracked = async (status?: string) => {
     try {
-      const data = await api.getTracked();
+      const params = status ? `?status=${encodeURIComponent(status)}` : '';
+      const data = await api.getTracked(params);
       setTracked(data.series);
       setTotal(data.total);
     } catch {
@@ -30,7 +32,7 @@ export function Tracked() {
     }
   };
 
-  useEffect(() => { fetchTracked(); }, []);
+  useEffect(() => { fetchTracked(statusFilter); }, [statusFilter]);
 
   const handleRemove = async (seriesId: string) => {
     try {
@@ -62,7 +64,7 @@ export function Tracked() {
     try {
       const result = await api.importTracked();
       toast.success(`Imported ${result.added} entries (${result.skipped} skipped)`);
-      fetchTracked();
+      fetchTracked(statusFilter);
     } catch {
       toast.error("manga_list.txt not found or import failed");
     } finally {
@@ -82,10 +84,9 @@ export function Tracked() {
     }
   };
 
-  const filtered = tracked.filter(s =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.series_id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const displayList = searchQuery
+    ? tracked.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.series_id.toLowerCase().includes(searchQuery.toLowerCase()))
+    : tracked;
 
   if (loading) {
     return (
@@ -111,7 +112,7 @@ export function Tracked() {
             {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
             Import
           </Button>
-          <Button variant="outline" onClick={fetchTracked}>
+          <Button variant="outline" onClick={() => fetchTracked(statusFilter)}>
             <RefreshCw className="h-4 w-4 mr-2" /> Refresh
           </Button>
         </div>
@@ -126,6 +127,27 @@ export function Tracked() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex gap-1 mb-3 flex-wrap">
+            {["", "reading", "downloading", "complete"].map((s) => {
+              const iconMap: Record<string, JSX.Element> = {
+                reading: <Eye className="h-3.5 w-3.5" />,
+                downloading: <Download className="h-3.5 w-3.5" />,
+                complete: <CircleCheck className="h-3.5 w-3.5" />,
+              };
+              return (
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={statusFilter === s ? "default" : "outline"}
+                  onClick={() => setStatusFilter(s)}
+                  className="text-xs"
+                >
+                  {s ? <>{iconMap[s]} <span className="ml-1 capitalize">{s}</span></> : "All"}
+                </Button>
+              );
+            })}
+          </div>
+
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -136,7 +158,7 @@ export function Tracked() {
             />
           </div>
 
-          {filtered.length === 0 ? (
+          {displayList.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>{searchQuery ? "No matching tracked manga" : "No tracked manga yet"}</p>
@@ -145,9 +167,9 @@ export function Tracked() {
               </p>
             </div>
           ) : (
-            <ScrollArea className="h-[500px]">
+            <ScrollArea className="h-[460px]">
               <div className="space-y-2">
-                {filtered.map((series) => (
+                {displayList.map((series) => (
                   <div
                     key={series.series_id}
                     className="flex items-center gap-4 p-3 rounded-md border hover:bg-accent/50 transition-colors"
@@ -166,7 +188,19 @@ export function Tracked() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{series.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{series.title}</p>
+                        {series.status && (
+                          <span className={[
+                            "text-[10px] px-1.5 py-0.5 rounded font-medium uppercase shrink-0",
+                            series.status === 'reading' ? 'bg-blue-500/10 text-blue-500' : '',
+                            series.status === 'downloading' ? 'bg-amber-500/10 text-amber-500' : '',
+                            series.status === 'complete' ? 'bg-green-500/10 text-green-500' : '',
+                          ].join(' ')}>
+                            {series.status}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground font-mono">{series.series_id}</p>
                       <p className="text-xs text-muted-foreground">
                         Added {new Date(series.added_at).toLocaleDateString()}

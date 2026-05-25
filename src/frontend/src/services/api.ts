@@ -334,17 +334,22 @@ export interface TrackedManga {
   added_at: string;
   last_checked_at: string | null;
   cover_url: string | null;
+  status?: string;
 }
 
-export async function getTracked(): Promise<{ series: TrackedManga[]; total: number }> {
-  return request('/api/tracked');
+export async function getTracked(query?: string): Promise<{ series: TrackedManga[]; total: number }> {
+  return request(`/api/tracked${query || ''}`);
 }
 
-export async function addTracked(seriesId: string, title: string, coverUrl?: string): Promise<void> {
+export async function addTracked(seriesId: string, title: string, coverUrl?: string, status = 'reading'): Promise<void> {
   await request('/api/tracked', {
     method: 'POST',
-    body: JSON.stringify({ seriesId, title, coverUrl }),
+    body: JSON.stringify({ seriesId, title, coverUrl, status }),
   });
+}
+
+export async function updateTrackedStatus(seriesId: string, status: string): Promise<void> {
+  await request(`/api/tracked/${encodeURIComponent(seriesId)}/status?status=${encodeURIComponent(status)}`, { method: 'PUT' });
 }
 
 export async function removeTracked(seriesId: string): Promise<void> {
