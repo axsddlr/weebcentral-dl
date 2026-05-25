@@ -2,11 +2,13 @@
 import os
 import shutil
 import asyncio
+import traceback
 
 from fastapi import APIRouter, Request, HTTPException
 
 from src.utils import resolve_safe_path
 from src.manga_utils import add_covers_to_archives_command, migrate_covers_command
+from src.logging_utils import logger
 
 router = APIRouter(tags=["library"])
 
@@ -29,13 +31,19 @@ async def refresh_library(request: Request):
 @router.get("/library/{series_dir}/chapters")
 async def list_chapters(request: Request, series_dir: str):
     """List chapters in a series."""
-    cache = request.app.state.library_cache
-    chapters = await cache.get_chapters(series_dir)
-    if not chapters:
-        root_dir, entry = cache.resolve_path(series_dir)
-        if not os.path.exists(os.path.join(root_dir, entry)):
-            raise HTTPException(status_code=404, detail="Series not found")
-    return {"chapters": chapters}
+    try:
+        cache = request.app.state.library_cache
+        chapters = await cache.get_chapters(series_dir)
+        if not chapters:
+            root_dir, entry = cache.resolve_path(series_dir)
+            if not os.path.exists(os.path.join(root_dir, entry)):
+                raise HTTPException(status_code=404, detail="Series not found")
+        return {"chapters": chapters}
+    except HTTPException:
+        raise
+    except Exception:
+        logger.error(f"list_chapters failed for series_dir={series_dir}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to list chapters")
 
 
 @router.delete("/library/{series_dir}")
