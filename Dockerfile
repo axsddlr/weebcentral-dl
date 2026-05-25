@@ -40,9 +40,8 @@ RUN chmod +x entrypoint.sh \
     && adduser --disabled-password --gecos "" --uid 1000 appuser \
     && chown -R appuser:appuser /app
 
-USER appuser
-
 EXPOSE 8000
 
+# Entrypoint runs as root to fix bind-mount permissions, then drops to appuser
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "8000"]
