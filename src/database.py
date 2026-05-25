@@ -8,23 +8,24 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 
 def _connect() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    _init_db(conn)
     return conn
 
 
-def init_db():
-    with _connect() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS tracked_manga (
-                series_id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                added_at TEXT NOT NULL DEFAULT (datetime('now')),
-                last_checked_at TEXT
-            )
-        """)
-        conn.commit()
+def _init_db(conn: sqlite3.Connection):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tracked_manga (
+            series_id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            added_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_checked_at TEXT
+        )
+    """)
+    conn.commit()
 
 
 def add_tracked(series_id: str, title: str) -> bool:
@@ -126,6 +127,3 @@ def import_from_file(filepath: str) -> tuple[int, int]:
                 else:
                     skipped += 1
     return added, skipped
-
-
-init_db()
