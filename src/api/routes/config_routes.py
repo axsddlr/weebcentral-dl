@@ -22,6 +22,7 @@ def config_to_response(config: DownloaderConfig) -> dict:
         "maxRetries": config.max_retries,
         "parallelWorkers": config.parallel_workers,
         "libraryPaths": config.library_paths,
+        "checkInterval": config.check_interval,
     }
 
 
@@ -61,6 +62,8 @@ async def update_config(request: Request, body: ConfigUpdateRequest):
         config.parallel_workers = body.parallelWorkers
     if body.libraryPaths is not None:
         config.library_paths = body.libraryPaths
+    if body.checkInterval is not None:
+        config.check_interval = body.checkInterval
 
     save_config(config, request.app.state.config_path)
     return config_to_response(config)

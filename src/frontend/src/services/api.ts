@@ -259,6 +259,7 @@ export interface AppConfig {
   maxRetries: number;
   parallelWorkers: number;
   libraryPaths: string[];
+  checkInterval: number;
 }
 
 export async function getConfig(): Promise<AppConfig> {

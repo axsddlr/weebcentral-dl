@@ -110,6 +110,7 @@ class ConfigResponse(BaseModel):
     maxRetries: int
     parallelWorkers: int
     libraryPaths: list[str]
+    checkInterval: int
 
 
 class ConfigUpdateRequest(BaseModel):
@@ -125,6 +126,7 @@ class ConfigUpdateRequest(BaseModel):
     maxRetries: Optional[int] = Field(None, ge=0, le=100, description="Max retries per image")
     parallelWorkers: Optional[int] = Field(None, ge=1, le=200, description="Parallel download workers")
     libraryPaths: Optional[list[str]] = Field(None, description="Additional library directories to scan")
+    checkInterval: Optional[int] = Field(None, ge=0, le=1440, description="Auto-check interval for tracked manga (minutes, 0=disabled)")
 
     @field_validator("outputDir")
     @classmethod

@@ -156,6 +156,9 @@ def run_watcher():
     config_watcher = ConfigWatcher(config_file)
     manga_watcher = MangaListWatcher(manga_file, config_watcher.config_loader)
 
+    config = config_watcher.config_loader.get_downloader_config()
+    check_interval = config.check_interval
+
     if use_tracked:
         print("[STARTUP] Tracked DB mode — processing all tracked manga")
         manga_watcher.process_tracked()
@@ -173,12 +176,25 @@ def run_watcher():
 
     observer.start()
 
-    print(f"[WATCH] Monitoring {manga_file} and {config_file} for changes (Ctrl+C to stop)...")
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
+    if use_tracked and check_interval > 0:
+        print(f"[WATCH] Auto-checking tracked manga every {check_interval} minutes")
+        next_check = time.time() + check_interval * 60
+        try:
+            while True:
+                time.sleep(1)
+                if time.time() >= next_check:
+                    print(f"\n[CHECK] Auto-check interval reached — re-checking tracked manga")
+                    manga_watcher.process_tracked()
+                    next_check = time.time() + check_interval * 60
+        except KeyboardInterrupt:
+            observer.stop()
+    else:
+        print(f"[WATCH] Monitoring {manga_file} and {config_file} for changes (Ctrl+C to stop)...")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
     observer.join()
 
 

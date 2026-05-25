@@ -39,6 +39,9 @@ class DownloaderConfig:
     output_dir: str = "./manga_downloads"
     library_paths: List[str] = field(default_factory=list)
 
+    # Auto-check interval for tracked manga (minutes, 0 = disabled)
+    check_interval: int = 0
+
     # Bulk/Docker mode
     bulk_file: Optional[str] = None
 
@@ -152,7 +155,7 @@ def save_config(config: DownloaderConfig, config_path: str | None = None):
     persistent_fields = {
         'latest', 'sequence', 'zip', 'verbose', 'use_english_title', 'comicinfo',
         'rlc', 'max_sleep', 'max_retries', 'parallel_workers', 'output_dir',
-        'library_paths',
+        'library_paths', 'check_interval',
     }
     config_dict = {k: v for k, v in asdict(config).items() if k in persistent_fields}
     toml_data = {'downloader': config_dict}

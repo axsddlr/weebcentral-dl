@@ -124,6 +124,17 @@ parallel_workers = 99
 # max_sleep = 300
 
 # ============================================================================
+# AUTO-CHECK INTERVAL
+# ============================================================================
+
+# How often (in minutes) the Docker watcher automatically re-checks tracked
+# manga for new chapters when running in tracked DB mode (WATCH_TRACKED=true).
+# Set to 0 (default) to disable auto-checking — only check on startup and
+# when config.toml changes.
+# Recommended: 60 (hourly), 180 (every 3 hours), 360 (every 6 hours), 1440 (daily)
+check_interval = 0
+
+# ============================================================================
 # NOTIFICATIONS (Optional)
 # ============================================================================
 
