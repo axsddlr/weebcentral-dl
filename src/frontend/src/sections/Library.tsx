@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import type { View } from '@/types';
+import type { View, LibraryManga, LibraryChapter } from '@/types';
 import * as api from '@/services/api';
 import { getCoverUrl } from '@/services/api';
 
 interface LibraryProps {
   onViewChange: (view: View) => void;
+  onOpenReader?: (manga: LibraryManga, chapter: LibraryChapter) => void;
 }
 
-export function Library({ onViewChange }: LibraryProps) {
+export function Library({ onViewChange, onOpenReader }: LibraryProps) {
   const [series, setSeries] = useState<api.LibrarySeries[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,17 @@ export function Library({ onViewChange }: LibraryProps) {
           {filtered.map((s) => {
             const cover = getCoverUrl(s.path);
             return (
-              <div className="b-lib-card" key={s.id} onClick={() => onViewChange('reader')}>
+              <div className="b-lib-card" key={s.id} onClick={async () => {
+                if (!onOpenReader) { onViewChange('reader'); return; }
+                const chapters = await api.getLibraryChapters(s.path).catch(() => []);
+                if (chapters.length > 0) {
+                  const manga: LibraryManga = { ...s, downloadedChapters: chapters.length, readChapters: 0 };
+                  const chapter: LibraryChapter = { ...chapters[0], read: false, lastReadPage: 0, images: [] };
+                  onOpenReader(manga, chapter);
+                } else {
+                  onViewChange('reader');
+                }
+              }}>
                 <div style={{
                   width: '100%',
                   aspectRatio: '0.7',

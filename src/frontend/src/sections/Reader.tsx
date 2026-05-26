@@ -1,14 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { View } from '@/types';
-import { SERIES, READER_PAGES } from '@/lib/mockData';
+import type { LibraryManga, LibraryChapter } from '@/types';
+import * as api from '@/services/api';
 
 interface ReaderProps {
+  manga?: LibraryManga | null;
+  chapter?: LibraryChapter | null;
   onViewChange: (view: View) => void;
 }
 
-export function Reader({ onViewChange }: ReaderProps) {
-  const s = SERIES[0];
-  const [page, setPage] = useState(2);
+export function Reader({ manga, chapter, onViewChange }: ReaderProps) {
+  const [pages, setPages] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!manga || !chapter) return;
+    setLoading(true);
+    setPage(0);
+    api.getPages(manga.path, chapter.filename)
+      .then(({ pages: p }) => setPages(p))
+      .catch(() => setPages([]))
+      .finally(() => setLoading(false));
+  }, [manga?.path, chapter?.filename]);
+
+  const title = manga?.title ?? 'No series selected';
+  const chNum = chapter?.number ?? '—';
+  const totalPages = pages.length || chapter?.totalPages || 0;
 
   return (
     <div className="b-reader">
@@ -18,52 +36,73 @@ export function Reader({ onViewChange }: ReaderProps) {
           Back to library
         </button>
         <div>
-          <div className="b-reader-title">{s.title} · Ch. 313</div>
-          <div className="b-reader-sub">VOL.17 // CONFESSION ARC // P.{String(page + 1).padStart(2, '0')}/30</div>
+          <div className="b-reader-title">{title} · Ch. {chNum}</div>
+          <div className="b-reader-sub">P.{String(page + 1).padStart(2, '0')}/{totalPages || '—'}</div>
         </div>
         <div className="b-reader-tools">
           <div className="b-tool is-active" title="Vertical">⇕</div>
-          <div className="b-tool" title="Page">⇔</div>
           <div className="b-tool" title="Zoom">⌕</div>
-          <div className="b-tool" title="Settings">⚙</div>
         </div>
       </div>
 
       <div className="b-reader-stage">
-        <div className="b-reader-rail">
-          {READER_PAGES.map((p, i) => (
-            <div
-              key={i}
-              className={'b-reader-thumb' + (i === page ? ' is-active' : '')}
-              style={{ background: `linear-gradient(160deg, ${p.c[0]}, ${p.c[1]})` }}
-              onClick={() => setPage(i)}
-            />
-          ))}
-        </div>
-        <div className="b-reader-pages" style={{ transform: 'translateY(-280px)' }}>
-          {READER_PAGES.map((p, i) => (
-            <div key={i} className="b-reader-page" style={{
-              height: 600,
-              background: `linear-gradient(160deg, ${p.c[0]}, ${p.c[1]})`,
-            }}>
-              <div className="b-reader-page-num">P.{String(p.n).padStart(2, '0')}/30</div>
-              <div className="b-reader-page-cap">// {p.caption}</div>
-              <div style={{ position: 'absolute', inset: '44px 32px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1.4fr 1fr 1.2fr', gap: 6 }}>
-                <div style={{ gridColumn: '1 / -1', background: 'rgba(0,0,0,.4)', border: '1px solid rgba(255,255,255,.1)' }} />
-                <div style={{ background: 'rgba(0,0,0,.25)', border: '1px solid rgba(255,255,255,.1)' }} />
-                <div style={{ gridColumn: '2 / 4', background: 'rgba(0,0,0,.5)', border: '1px solid rgba(255,255,255,.1)' }} />
-                <div style={{ gridColumn: '1 / -1', background: 'rgba(0,0,0,.35)', border: '1px solid rgba(255,255,255,.1)' }} />
+        {pages.length > 0 && (
+          <div className="b-reader-rail">
+            {pages.slice(0, 12).map((_, i) => (
+              <div
+                key={i}
+                className={'b-reader-thumb' + (i === page ? ' is-active' : '')}
+                style={{ background: '#1c1814' }}
+                onClick={() => setPage(i)}
+              />
+            ))}
+          </div>
+        )}
+
+        {loading && (
+          <div style={{ color: 'var(--dim)', fontFamily: '"JetBrains Mono",monospace', fontSize: 12, margin: 'auto' }}>
+            LOADING…
+          </div>
+        )}
+
+        {!loading && !manga && (
+          <div style={{ color: 'var(--dim)', fontFamily: '"JetBrains Mono",monospace', fontSize: 12, margin: 'auto', textAlign: 'center' }}>
+            OPEN A CHAPTER FROM THE LIBRARY
+          </div>
+        )}
+
+        {!loading && manga && pages.length === 0 && (
+          <div style={{ color: 'var(--dim)', fontFamily: '"JetBrains Mono",monospace', fontSize: 12, margin: 'auto' }}>
+            NO PAGES FOUND
+          </div>
+        )}
+
+        {!loading && pages.length > 0 && (
+          <div className="b-reader-pages">
+            {pages.map((url, i) => (
+              <div key={i} className="b-reader-page" style={{ height: 'auto' }}>
+                <div className="b-reader-page-num">P.{String(i + 1).padStart(2, '0')}/{totalPages}</div>
+                <img
+                  src={api.getPageUrl(manga!.path, chapter!.filename, i)}
+                  alt={`Page ${i + 1}`}
+                  style={{ width: '100%', display: 'block' }}
+                  loading="lazy"
+                  onLoad={() => { if (i === page) {} }}
+                />
               </div>
-              <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,.025) 0 1px, transparent 1px 2px)', pointerEvents: 'none' }} />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="b-reader-bottom">
-        <span><span className="num">P.13</span> &nbsp;OF 30</span>
-        <div className="b-reader-progress"><div className="b-reader-progress-fill" style={{ width: '43%' }} /></div>
-        <span style={{ color: 'var(--cream)', fontWeight: 600 }}>NEXT: CH.314 →</span>
+        <span><span className="num">P.{page + 1}</span> &nbsp;OF {totalPages || '—'}</span>
+        <div className="b-reader-progress">
+          <div className="b-reader-progress-fill" style={{ width: totalPages ? `${((page + 1) / totalPages) * 100}%` : '0%' }} />
+        </div>
+        <span style={{ color: 'var(--cream)', fontWeight: 600 }}>
+          {pages.length > 0 ? `${totalPages - page - 1} PAGES LEFT` : '—'}
+        </span>
       </div>
     </div>
   );

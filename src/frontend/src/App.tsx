@@ -8,7 +8,7 @@ import { Reader } from '@/sections/Reader';
 import { Settings } from '@/sections/Settings';
 import { Logs } from '@/sections/Logs';
 import { Tracked } from '@/sections/Tracked';
-import type { View } from '@/types';
+import type { View, LibraryManga, LibraryChapter } from '@/types';
 
 type Route = View;
 
@@ -19,15 +19,23 @@ function getNow() {
 
 function App() {
   const [route, setRoute] = useState<Route>('dashboard');
+  const [manga, setManga] = useState<LibraryManga | null>(null);
+  const [chapter, setChapter] = useState<LibraryChapter | null>(null);
   const isReader = route === 'reader';
+
+  const handleOpenReader = (m: LibraryManga, ch: LibraryChapter) => {
+    setManga(m);
+    setChapter(ch);
+    setRoute('reader');
+  };
 
   const screen: Record<Route, ReactElement> = {
     dashboard: <Dashboard />,
     search:    <Search />,
     tracked:   <Tracked />,
     queue:     <Queue />,
-    library:   <Library onViewChange={setRoute} />,
-    reader:    <Reader onViewChange={setRoute} />,
+    library:   <Library onViewChange={setRoute} onOpenReader={handleOpenReader} />,
+    reader:    <Reader manga={manga} chapter={chapter} onViewChange={setRoute} />,
     settings:  <Settings />,
     logs:      <Logs />,
   };
