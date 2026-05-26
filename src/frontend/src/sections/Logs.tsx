@@ -1,227 +1,62 @@
-import { useState, useEffect } from 'react';
-import {
-  Download,
-  Trash2,
-  RefreshCw,
-  Filter,
-  Search,
-  AlertCircle,
-  Info,
-  AlertTriangle,
-  Terminal
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from 'sonner';
-import * as api from '@/services/api';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { LOG_LINES } from '@/lib/mockData';
 
 export function Logs() {
-  const [logs, setLogs] = useState<api.LogEntry[]>([]);
-  const [filter, setFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const fetchLogs = async () => {
-    try {
-      const data = await api.getLogs();
-      setLogs(data);
-    } catch (e) {
-      console.error('Failed to fetch logs:', e);
-    }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api.getLogs();
-        if (!cancelled) setLogs(data);
-      } catch (e) {
-        if (!cancelled) console.error('Failed to fetch logs:', e);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useWebSocket({
-    path: '/ws/logs',
-    onMessage: (msg) => {
-      if (msg.type === 'log') {
-        setLogs(prev => [msg.data as api.LogEntry, ...prev].slice(0, 500));
-      }
-    },
-  });
-
-  const filteredLogs = logs.filter(log => {
-    const matchesFilter = filter === 'all' || log.level === filter;
-    const matchesSearch = searchQuery === '' ||
-      log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.source?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const getLevelIcon = (level: string) => {
-    switch (level) {
-      case 'info':
-        return <Info className="h-4 w-4 text-blue-500" />;
-      case 'debug':
-        return <Terminal className="h-4 w-4 text-muted-foreground" />;
-      case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Info className="h-4 w-4" />;
-    }
-  };
-
-  const getLevelBadge = (level: string) => {
-    const variants: Record<string, string> = {
-      info: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-      debug: 'bg-muted text-muted-foreground',
-      warning: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-      error: 'bg-red-500/10 text-red-500 border-red-500/20',
-    };
-    return (
-      <Badge variant="outline" className={variants[level] || variants.info}>
-        {level.toUpperCase()}
-      </Badge>
-    );
-  };
-
-  const handleClear = async () => {
-    try {
-      await api.clearLogs();
-      setLogs([]);
-      toast.success('Logs cleared');
-    } catch {
-      toast.error('Failed to clear logs');
-    }
-  };
-
-  const handleExport = () => {
-    const logText = logs.map(log =>
-      `[${log.timestamp}] [${log.level.toUpperCase()}] [${log.source || ''}] ${log.message}`
-    ).join('\n');
-
-    const blob = new Blob([logText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `weebcentral-dl-logs-${new Date().toISOString().split('T')[0]}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Logs exported');
-  };
-
-  const stats = logs.reduce(
-    (acc, l) => {
-      acc.total++;
-      acc[l.level] = (acc[l.level] || 0) + 1;
-      return acc;
-    },
-    { total: 0, info: 0, debug: 0, warning: 0, error: 0 } as Record<string, number>
-  );
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
+    <>
+      <div className="b-head">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Logs</h1>
-          <p className="text-muted-foreground">View and manage download activity logs</p>
+          <div className="b-eyebrow">№ 047 · DISPATCHES · LIVE</div>
+          <div className="b-title">Logs</div>
+          <div className="b-deck">The activity stream. Filter by level, search within messages, export the whole thing if you're debugging.</div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" /> Export
-          </Button>
-          <Button variant="outline" onClick={handleClear}>
-            <Trash2 className="h-4 w-4 mr-2" /> Clear
-          </Button>
-          <Button variant="outline" onClick={fetchLogs}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-5 gap-4">
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold">{stats.total}</p><p className="text-xs text-muted-foreground">Total</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold text-blue-500">{stats.info}</p><p className="text-xs text-muted-foreground">Info</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold text-muted-foreground">{stats.debug}</p><p className="text-xs text-muted-foreground">Debug</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold text-yellow-500">{stats.warning}</p><p className="text-xs text-muted-foreground">Warnings</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold text-red-500">{stats.error}</p><p className="text-xs text-muted-foreground">Errors</p></CardContent></Card>
-      </div>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search logs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-[150px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="debug">Debug</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="b-headact">
+          <div className="b-byline"><b>1,284</b> ENTRIES · 4 ERRORS</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="b-btn">
+              <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M12 3v13m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
+              Export
+            </button>
+            <button className="b-btn b-btn-primary">
+              <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+              Tail
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Log Entries</CardTitle>
-          <CardDescription>Showing {filteredLogs.length} of {logs.length} entries</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[500px] border rounded-md">
-            <div className="space-y-0">
-              {filteredLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors border-b last:border-b-0"
-                >
-                  <div className="mt-0.5">{getLevelIcon(log.level)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {getLevelBadge(log.level)}
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(log.timestamp).toLocaleTimeString()}
-                      </span>
-                      {log.source && (
-                        <Badge variant="secondary" className="text-xs">{log.source}</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm">{log.message}</p>
-                  </div>
-                </div>
-              ))}
-              {filteredLogs.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Terminal className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No logs match your filters</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-    </div>
+      <div className="b-figures">
+        <div className="b-figure"><div className="b-fig-label"><span>TOTAL</span></div><div className="b-fig-num">1,284</div></div>
+        <div className="b-figure"><div className="b-fig-label"><span>INFO</span></div><div className="b-fig-num" style={{ color: '#10B981' }}>892</div></div>
+        <div className="b-figure"><div className="b-fig-label"><span>DEBUG</span></div><div className="b-fig-num">340</div></div>
+        <div className="b-figure"><div className="b-fig-label"><span>WARN</span></div><div className="b-fig-num" style={{ color: '#F59E0B' }}>48</div></div>
+        <div className="b-figure"><div className="b-fig-label"><span>ERROR</span></div><div className="b-fig-num" style={{ color: 'var(--crimson)' }}>4</div></div>
+      </div>
+
+      <div className="b-toolbar">
+        <div className="b-pill is-active">All</div>
+        <div className="b-pill">Info</div>
+        <div className="b-pill">Debug</div>
+        <div className="b-pill">Warn</div>
+        <div className="b-pill">Error</div>
+        <div className="b-search" style={{ maxWidth: 280, marginLeft: 'auto' }}>
+          <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="Search dispatches…" />
+        </div>
+      </div>
+
+      <div className="b-logs">
+        <div className="b-log-row" style={{ background: 'rgba(245,240,225,.03)', color: 'var(--dim)' }}>
+          <span>TIMESTAMP</span><span>LEVEL</span><span>SOURCE</span><span>MESSAGE</span>
+        </div>
+        {LOG_LINES.map((l, i) => (
+          <div className="b-log-row" key={i}>
+            <span className="b-log-time">{l.t}</span>
+            <span className={'b-log-lvl ' + l.lvl}>{l.lvl.toUpperCase()}</span>
+            <span className="b-log-src">{l.src}</span>
+            <span className="b-log-msg">{l.msg}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

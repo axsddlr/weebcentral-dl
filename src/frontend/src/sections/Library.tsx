@@ -1,343 +1,59 @@
-import { useState, useEffect } from 'react';
-import {
-  BookOpen,
-  Search,
-  MoreVertical,
-  Play,
-  Grid3X3,
-  List,
-  Trash2,
-  Loader2,
-  RefreshCw
-} from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { LibraryManga, LibraryChapter, View } from '@/types';
-import { toast } from 'sonner';
-import * as api from '@/services/api';
+import type { View } from '@/types';
+import { Cover } from '@/components/Cover';
+import { SERIES } from '@/lib/mockData';
 
 interface LibraryProps {
   onViewChange: (view: View) => void;
-  onMangaSelect: (manga: LibraryManga, chapter: LibraryChapter) => void;
 }
 
-export function Library({ onViewChange, onMangaSelect }: LibraryProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [library, setLibrary] = useState<api.LibrarySeries[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSeries, setSelectedSeries] = useState<api.LibrarySeries | null>(null);
-  const [chapters, setChapters] = useState<(api.LibraryChapter & { read?: boolean; lastReadPage?: number })[]>([]);
-  const [showChaptersDialog, setShowChaptersDialog] = useState(false);
-  const [loadingChapters, setLoadingChapters] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchLibrary = async () => {
-    try {
-      const data = await api.getLibrary();
-      setLibrary(data);
-    } catch (e) {
-      console.error('Failed to fetch library:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      const data = await api.refreshLibrary();
-      setLibrary(data);
-      toast.success('Library refreshed');
-    } catch {
-      toast.error('Failed to refresh library');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => { fetchLibrary(); }, []);
-
-  const filteredLibrary = library.filter(s =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleMangaClick = async (series: api.LibrarySeries) => {
-    setSelectedSeries(series);
-    setShowChaptersDialog(true);
-    setLoadingChapters(true);
-    try {
-      const [chs, progress] = await Promise.all([
-        api.getLibraryChapters(series.path),
-        api.getProgress(series.path),
-      ]);
-      const enriched = chs.map(ch => ({
-        ...ch,
-        read: (progress.progress[ch.path] || 0) > 0,
-        lastReadPage: progress.progress[ch.path] || 0,
-      }));
-      setChapters(enriched);
-    } catch {
-      toast.error('Failed to load chapters');
-    } finally {
-      setLoadingChapters(false);
-    }
-  };
-
-  const handleReadChapter = (chapter: api.LibraryChapter) => {
-    if (selectedSeries) {
-      const libraryManga: LibraryManga = {
-        id: selectedSeries.id,
-        title: selectedSeries.title,
-        coverUrl: selectedSeries.coverUrl || undefined,
-        totalChapters: selectedSeries.totalChapters,
-        downloadedChapters: selectedSeries.totalChapters,
-        readChapters: 0,
-        path: selectedSeries.path,
-      };
-      const ch = chapter as api.LibraryChapter & { read?: boolean; lastReadPage?: number };
-      const libraryChapter: LibraryChapter = {
-        id: ch.id,
-        number: ch.number,
-        filename: ch.filename,
-        totalPages: ch.totalPages,
-        read: ch.read || false,
-        lastReadPage: ch.lastReadPage || 0,
-        path: ch.path,
-        images: [],
-      };
-      onMangaSelect(libraryManga, libraryChapter);
-      onViewChange('reader');
-    }
-  };
-
-  const handleDeleteSeries = async (seriesPath: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await api.deleteSeries(seriesPath);
-      toast.success('Series removed from library');
-      fetchLibrary();
-    } catch {
-      toast.error('Failed to delete series');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
+export function Library({ onViewChange }: LibraryProps) {
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
+    <>
+      <div className="b-head">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Library</h1>
-          <p className="text-muted-foreground">Browse and read your downloaded manga collection</p>
+          <div className="b-eyebrow">№ 047 · COLLECTION</div>
+          <div className="b-title">Library</div>
+          <div className="b-deck">Fifty-nine series. Ten thousand seven hundred and seventy-four chapters. Eighty-point-two gigabytes of paneled fiction, sorted by what you opened last.</div>
         </div>
-        <Button variant="outline" size="icon" onClick={handleRefresh} disabled={refreshing}>
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search manga..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex border rounded-md">
-          <Button
-            variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-            size="icon"
-            onClick={() => setViewMode('grid')}
-          >
-            <Grid3X3 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-            size="icon"
-            onClick={() => setViewMode('list')}
-          >
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="b-headact">
+          <div className="b-byline">FILED <b>{SERIES.length}</b> SERIES</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="b-btn">
+              <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+              Rescan
+            </button>
+            <button className="b-btn b-btn-primary">
+              <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              Grid
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold">{library.length}</p><p className="text-xs text-muted-foreground">Total Series</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold">{library.reduce((acc, m) => acc + m.totalChapters, 0)}</p><p className="text-xs text-muted-foreground">Chapters</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-2xl font-bold">{filteredLibrary.length}</p><p className="text-xs text-muted-foreground">Showing</p></CardContent></Card>
+      <div className="b-toolbar">
+        <div className="b-pill is-active">All <span className="ct">59</span></div>
+        <div className="b-pill">Reading <span className="ct">38</span></div>
+        <div className="b-pill">Caught up <span className="ct">12</span></div>
+        <div className="b-pill">Complete <span className="ct">9</span></div>
+        <div className="b-search" style={{ maxWidth: 280, marginLeft: 'auto' }}>
+          <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="Search the stacks…" />
+        </div>
       </div>
 
-      {viewMode === 'grid' ? (
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filteredLibrary.map((series) => (
-            <Card
-              key={series.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors overflow-hidden group"
-              onClick={() => handleMangaClick(series)}
-            >
-              <div className="aspect-[2/3] relative overflow-hidden bg-muted">
-                {series.coverUrl ? (
-                  <img
-                    src={series.coverUrl}
-                    alt={series.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <BookOpen className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <Badge className="absolute top-2 right-2 bg-primary">
-                  {series.totalChapters} ch
-                </Badge>
-              </div>
-              <CardContent className="p-3">
-                <h3 className="font-semibold truncate">{series.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {series.totalChapters} chapters
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredLibrary.map((series) => (
-            <Card
-              key={series.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => handleMangaClick(series)}
-            >
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="w-16 h-24 bg-muted rounded overflow-hidden flex-shrink-0">
-                  {series.coverUrl ? (
-                    <img src={series.coverUrl} alt={series.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold">{series.title}</h3>
-                  <span className="text-xs text-muted-foreground">{series.totalChapters} chapters</span>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => handleDeleteSeries(series.path, e as unknown as React.MouseEvent)}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {filteredLibrary.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <BookOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">No manga found</h3>
-          <p className="text-muted-foreground">Download some manga first or adjust your search</p>
-        </div>
-      )}
-
-      <Dialog open={showChaptersDialog} onOpenChange={setShowChaptersDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedSeries?.title}</DialogTitle>
-          </DialogHeader>
-
-          {selectedSeries && (
-            <div className="flex gap-4 mb-4">
-              <div className="w-24 h-36 bg-muted rounded overflow-hidden flex-shrink-0">
-                {selectedSeries.coverUrl ? (
-                  <img src={selectedSeries.coverUrl} alt={selectedSeries.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <BookOpen className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground mt-2">
-                  {selectedSeries.totalChapters} chapters downloaded
-                </p>
-              </div>
+      <div className="b-lib-grid">
+        {SERIES.slice(0, 12).map((s) => (
+          <div className="b-lib-card" key={s.id} onClick={() => onViewChange('reader')}>
+            <Cover series={s} height={220} />
+            <div className="b-progress"><div className="b-progress-fill" style={{ width: `${s.progress * 100}%` }} /></div>
+            <div>
+              <div className="b-lib-title">{s.title}</div>
+              <div className="b-resume-author" style={{ marginTop: 2 }}>BY {s.author.toUpperCase()}</div>
+              <div className="b-lib-meta"><span><span className="num">{s.read}</span>/{s.ch} CH</span><span>{s.lastRead}</span></div>
             </div>
-          )}
-
-          <ScrollArea className="h-[400px] border rounded-md">
-            {loadingChapters ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <div className="space-y-1 p-2">
-                {chapters.map((chapter) => (
-                  <div
-                    key={chapter.id}
-                    className="flex items-center justify-between p-3 rounded hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      {(chapter.lastReadPage ?? 0) > 0 && (
-                        <div className="relative w-8 h-8 flex items-center justify-center">
-                          <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
-                            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/20" />
-                            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="3"
-                              strokeDasharray={`${2 * Math.PI * 14}`}
-                              strokeDashoffset={`${2 * Math.PI * 14 * (1 - Math.min((chapter.lastReadPage ?? 0) / chapter.totalPages, 1))}`}
-                              className="text-primary" strokeLinecap="round" />
-                          </svg>
-                          <span className="absolute text-[10px] font-medium">{Math.round(((chapter.lastReadPage ?? 0) / chapter.totalPages) * 100)}%</span>
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-medium text-sm">Chapter {chapter.number}</p>
-                        <p className="text-xs text-muted-foreground">{chapter.totalPages} pages</p>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleReadChapter(chapter)}
-                    >
-                      <Play className="h-4 w-4 mr-1" />
-                      Read
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

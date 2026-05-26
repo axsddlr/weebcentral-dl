@@ -2,116 +2,465 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.625rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+/* ── Shell B: Crimson Press ── */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+.b-root {
+  width: 100%;
+  height: 100%;
+  background: #14110e;
+  color: #E8E1D1;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 13px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: var(--b-side-w, 240px) 1fr;
+  --crimson: var(--b-crimson, #DC2626);
+  --crimson-2: #9F1239;
+  --cream: #F5F0E1;
+  --paper: #14110e;
+  --paper-2: #1c1814;
+  --paper-3: #2a2218;
+  --ink: #0c0a08;
+  --line: rgba(245,240,225,.10);
+  --line-2: rgba(245,240,225,.20);
+  --dim: rgba(245,240,225,.55);
+  --dimmer: rgba(245,240,225,.30);
+  --d: 1;
+  --pad-x: 32px;
+  --pad-y: 24px;
+  --gap: 20px;
+  --cover: 220px;
 }
 
-/* Chart colors */
-:root {
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
-}
+/* Density modifiers */
+.b-root.density-compact { --d: .85; --pad-x: 24px; --pad-y: 18px; --gap: 14px }
+.b-root.density-comfy   { --d: 1.15; --pad-x: 40px; --pad-y: 30px; --gap: 26px }
+/* Cover size */
+.b-root.cover-small { --cover: 180px }
+.b-root.cover-large { --cover: 260px }
+/* Sidebar compact */
+.b-root.side-compact { --b-side-w: 64px }
+.b-root.side-compact .b-brand-text,
+.b-root.side-compact .b-nav-section,
+.b-root.side-compact .b-nav-item > span:nth-child(2),
+.b-root.side-compact .b-nav-badge,
+.b-root.side-compact .b-nav-num,
+.b-root.side-compact .b-status-text { display: none }
+.b-root.side-compact .b-brand { padding: 18px 12px; justify-content: center }
+.b-root.side-compact .b-nav { padding: 12px 8px }
+.b-root.side-compact .b-nav-item { display: flex; justify-content: center; padding: 10px 0 }
+.b-root.side-compact .b-status { justify-content: center; padding: 9px 4px }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Kraft grain overlay */
+.b-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.04) 0 1px, transparent 1px 2px),
+    radial-gradient(circle at 80% 10%, rgba(220,38,38,.10), transparent 40%);
 }
-
-::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+/* Subtle scanlines */
+.b-root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.10) 0 1px, transparent 1px 4px);
+  z-index: 9998;
+  opacity: .4;
 }
+.b-root > * { position: relative; z-index: 1 }
 
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
+.b-display { font-family: "Bricolage Grotesque","Space Grotesk",sans-serif; font-weight: 800; letter-spacing: -0.03em; line-height: .95 }
+.b-mono    { font-family: "JetBrains Mono",monospace; letter-spacing: 0.02em }
+.b-sans    { font-family: "Space Grotesk",sans-serif }
+
+/* ── Sidebar ── */
+.b-side {
+  background: rgba(12,10,8,.7);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(20px);
+}
+.b-brand {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+.b-brand::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--crimson);
+}
+.b-brand-mark {
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
+  background: linear-gradient(135deg, var(--crimson), var(--crimson-2));
+  box-shadow: 0 0 20px rgba(220,38,38,.35), inset 0 0 0 1px rgba(255,255,255,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cream);
+  font-family: "Bricolage Grotesque",sans-serif;
+  font-weight: 900;
+  font-size: 18px;
+  position: relative;
 }
+.b-brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: repeating-linear-gradient(45deg, rgba(0,0,0,.15) 0 1px, transparent 1px 3px);
+}
+.b-brand-text { line-height: 1 }
+.b-brand-name { font-family: "Bricolage Grotesque",sans-serif; font-weight: 800; letter-spacing: -0.02em; font-size: 16px; color: var(--cream) }
+.b-brand-sub  { font-family: "JetBrains Mono",monospace; font-size: 9.5px; color: var(--crimson); letter-spacing: 0.18em; margin-top: 3px }
 
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+.b-nav { padding: 14px 10px; flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px }
+.b-nav-section { padding: 14px 10px 6px; font: 600 9.5px/1 "JetBrains Mono",monospace; color: var(--dimmer); letter-spacing: 0.22em }
+.b-nav-item {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--dim);
+  font-weight: 500;
+  font-size: 13px;
+  border: 1px solid transparent;
+  position: relative;
+  transition: all .15s ease;
 }
+.b-nav-item:hover { color: var(--cream); background: rgba(245,240,225,.03) }
+.b-nav-item.is-active {
+  color: var(--cream);
+  background: linear-gradient(90deg, rgba(220,38,38,.16), rgba(220,38,38,.02));
+  border-color: rgba(220,38,38,.35);
+  box-shadow: inset 2px 0 0 var(--crimson), 0 0 16px rgba(220,38,38,.15);
+}
+.b-nav-item.is-active .b-nav-num { color: var(--crimson) }
+.b-nav-num   { font-family: "JetBrains Mono",monospace; font-size: 10px; color: var(--dimmer); letter-spacing: 0.05em }
+.b-nav-badge { font-family: "JetBrains Mono",monospace; font-size: 10px; color: var(--crimson); background: rgba(220,38,38,.12); padding: 1px 6px; border-radius: 99px; font-weight: 600 }
 
-/* Animation for progress bars */
-@keyframes progress-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
+.b-side-foot { padding: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px }
+.b-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: rgba(16,185,129,.06);
+  border: 1px solid rgba(16,185,129,.18);
+  border-radius: 8px;
+  font-size: 11px;
 }
+.b-status-dot { width: 7px; height: 7px; border-radius: 99px; background: #10B981; box-shadow: 0 0 8px #10B981; animation: b-pulse 1.6s ease-in-out infinite }
+@keyframes b-pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+.b-status-text { line-height: 1.2 }
+.b-status-title { color: #10B981; font-family: "JetBrains Mono",monospace; font-size: 9.5px; letter-spacing: 0.15em }
+.b-status-sub   { font-size: 10.5px; color: var(--dim); margin-top: 2px }
 
-.animate-progress {
-  animation: progress-pulse 1.5s ease-in-out infinite;
+/* ── Main stage ── */
+.b-stage { display: grid; grid-template-rows: auto 1fr; min-height: 0; overflow: hidden }
+.b-mast-bar {
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(12,10,8,.5);
 }
+.b-issue { font: 500 11.5px/1 "JetBrains Mono",monospace; color: var(--dim); display: flex; align-items: center; gap: 14px; letter-spacing: 0.05em }
+.b-issue b { color: var(--cream); font-weight: 600 }
+.b-issue .pipe { color: var(--crimson) }
+.b-issue .quote { font-family: "Space Grotesk",sans-serif; font-style: italic; letter-spacing: 0; color: var(--dim) }
+
+.b-content { padding: 24px 32px; overflow: hidden; display: flex; flex-direction: column; gap: 20px; min-height: 0; position: relative }
+
+/* Editorial header */
+.b-head { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: flex-end; padding-bottom: 20px; border-bottom: 1px solid var(--line) }
+.b-eyebrow {
+  font: 600 10px/1 "JetBrains Mono",monospace;
+  color: var(--crimson);
+  letter-spacing: 0.3em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.b-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); max-width: 120px }
+.b-title      { font: 800 44px/.95 "Bricolage Grotesque",sans-serif; letter-spacing: -0.035em; color: var(--cream) }
+.b-title .accent { color: var(--crimson) }
+.b-title-jp   { font: 600 11px/1 "Noto Sans JP",sans-serif; color: var(--crimson); letter-spacing: 0.08em; margin-top: 8px; display: block }
+.b-deck       { font: 400 13px/1.45 "Space Grotesk",sans-serif; color: var(--dim); margin-top: 14px; max-width: 560px }
+
+.b-headact { display: flex; flex-direction: column; gap: 8px; align-items: flex-end }
+.b-byline  { font: 500 10px/1 "JetBrains Mono",monospace; color: var(--dimmer); letter-spacing: 0.15em }
+.b-byline b { color: var(--cream) }
+
+.b-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: rgba(245,240,225,.02);
+  color: var(--cream);
+  font: 600 11.5px/1 "Space Grotesk",sans-serif;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.b-btn:hover { background: rgba(245,240,225,.06) }
+.b-btn-primary { background: var(--crimson); border-color: var(--crimson); color: var(--cream); box-shadow: 0 0 16px rgba(220,38,38,.35) }
+.b-btn-primary:hover { filter: brightness(1.1) }
+
+/* ── Newspaper figures ── */
+.b-figures {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.b-figure { padding: 18px 22px; border-right: 1px solid var(--line); position: relative }
+.b-figure::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--crimson), transparent) }
+.b-figure:last-child { border-right: 0 }
+.b-fig-label { font: 600 9.5px/1 "JetBrains Mono",monospace; color: var(--dimmer); letter-spacing: 0.18em; display: flex; justify-content: space-between }
+.b-fig-num   { font-family: "Bricolage Grotesque",sans-serif; font-weight: 800; font-size: 44px; line-height: .95; margin-top: 10px; letter-spacing: -0.04em; color: var(--cream) }
+.b-fig-num .unit { font-family: "JetBrains Mono",monospace; font-size: 11px; color: var(--crimson); margin-left: 6px; font-weight: 600 }
+.b-fig-foot  { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 10.5px; color: var(--dim); font-family: "JetBrains Mono",monospace }
+.b-fig-delta { color: #10B981; font-weight: 600 }
+.b-fig-delta.warn { color: var(--crimson) }
+
+/* ── Section heading ── */
+.b-section { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden }
+.b-sec-head { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center }
+.b-sec-num  { font: 700 11px/1 "JetBrains Mono",monospace; color: var(--crimson); letter-spacing: 0.15em; padding: 6px 9px; border: 1px solid rgba(220,38,38,.35); background: rgba(220,38,38,.08); border-radius: 4px }
+.b-sec-title { font: 700 18px/1 "Space Grotesk",sans-serif; color: var(--cream); letter-spacing: -0.01em }
+.b-sec-line  { height: 1px; background: var(--line); margin: 0 8px }
+.b-sec-meta  { font: 600 10px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.15em }
+
+/* ── Resume row ── */
+.b-resume { display: grid; grid-template-columns: repeat(5,1fr); gap: 18px }
+.b-resume-item  { display: flex; flex-direction: column; gap: 10px; cursor: pointer }
+.b-resume-title { font: 600 12px/1.3 "Space Grotesk",sans-serif; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.b-resume-author { font: 500 10.5px/1 "JetBrains Mono",monospace; color: var(--dim); margin-top: 4px; letter-spacing: 0.04em }
+.b-resume-meta  { font: 600 9.5px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.08em; display: flex; justify-content: space-between; margin-top: 6px }
+.b-progress      { height: 2px; background: rgba(245,240,225,.08); position: relative }
+.b-progress-fill { height: 100%; background: var(--crimson) }
+
+/* ── 3-column editorial grid ── */
+.b-editorial { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line) }
+.b-col      { padding: 20px 22px; border-right: 1px solid var(--line); min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px }
+.b-col:last-child { border-right: 0 }
+.b-col-head  { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 12px; border-bottom: 1px dashed var(--line) }
+.b-col-title { font: 700 14px/1 "Space Grotesk",sans-serif; color: var(--cream); letter-spacing: -0.005em }
+.b-col-meta  { font: 600 9.5px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.15em }
+
+/* ── New chapters list ── */
+.b-new-item { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--line); cursor: pointer }
+.b-new-item:last-child { border-bottom: 0 }
+.b-new-num   { font-family: "JetBrains Mono",monospace; font-size: 10px; color: var(--crimson); margin-right: 8px; font-weight: 700; letter-spacing: 0.05em }
+.b-new-title { font: 600 12px/1.3 "Space Grotesk",sans-serif; color: var(--cream); display: flex; align-items: center }
+.b-new-sub   { font: 500 10px/1 "JetBrains Mono",monospace; color: var(--dim); margin-top: 4px; letter-spacing: 0.05em }
+.b-new-badge { font-family: "Bricolage Grotesque",sans-serif; font-weight: 800; font-size: 18px; color: var(--crimson); text-align: right; white-space: nowrap; letter-spacing: -0.02em; padding: 3px 9px; background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.25); border-radius: 5px }
+.b-new-badge .sm { font-family: "JetBrains Mono",monospace; font-size: 8.5px; font-weight: 600; color: var(--dim); display: block; letter-spacing: 0.1em; margin-top: 1px }
+
+/* ── Sparkline ── */
+.b-spark       { display: flex; align-items: flex-end; gap: 3px; height: 72px; border-bottom: 1px solid var(--line); padding-bottom: 2px }
+.b-spark-bar   { flex: 1; background: var(--cream); min-height: 2px; opacity: .55; border-radius: 2px 2px 0 0 }
+.b-spark-bar.peak { background: var(--crimson); opacity: 1; box-shadow: 0 0 8px rgba(220,38,38,.4) }
+.b-spark-axis  { display: flex; justify-content: space-between; font: 500 9px/1 "JetBrains Mono",monospace; color: var(--dimmer); padding-top: 8px; letter-spacing: 0.1em }
+
+/* ── Storage rows ── */
+.b-storage-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 11.5px; align-items: center }
+.b-storage-row:last-child { border-bottom: 0 }
+.b-storage-row .name { font: 600 11.5px/1.2 "Space Grotesk",sans-serif; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.b-storage-row .bar  { height: 2px; background: var(--crimson); margin-top: 5px }
+.b-storage-row .val  { font: 600 11px/1 "JetBrains Mono",monospace; color: var(--cream); text-align: right; letter-spacing: 0.05em }
+
+/* ── Library toolbar / chips ── */
+.b-toolbar { display: flex; align-items: center; gap: 10px; padding: 0 0 4px }
+.b-pill {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  font: 600 11px/1 "Space Grotesk",sans-serif;
+  color: var(--dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.02em;
+}
+.b-pill.is-active { background: var(--crimson); color: var(--cream); border-color: var(--crimson); box-shadow: 0 0 12px rgba(220,38,38,.3) }
+.b-pill .ct { font-family: "JetBrains Mono",monospace; font-size: 9.5px; opacity: .7; font-weight: 500 }
+.b-search { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(245,240,225,.03); border: 1px solid var(--line); border-radius: 8px; color: var(--cream); font-size: 12px }
+.b-search input { flex: 1; background: transparent; border: 0; outline: none; color: var(--cream); font: inherit }
+
+.b-lib-grid  { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: repeat(6,1fr); gap: 18px; align-content: flex-start }
+.b-lib-card  { display: flex; flex-direction: column; gap: 8px; cursor: pointer }
+.b-lib-title { font: 600 12px/1.3 "Space Grotesk",sans-serif; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.b-lib-meta  { display: flex; justify-content: space-between; font: 500 10px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.05em; margin-top: 2px }
+.b-lib-meta .num { font: 700 11px/1 "Bricolage Grotesque",sans-serif; color: var(--crimson); letter-spacing: -0.01em }
+
+/* ── Reader ── */
+.b-reader { position: absolute; inset: 0; background: var(--ink); display: grid; grid-template-rows: auto 1fr auto }
+.b-reader-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(12,10,8,.92);
+  backdrop-filter: blur(20px);
+  z-index: 2;
+}
+.b-reader-back  { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); cursor: pointer; color: var(--dim); font-size: 11px }
+.b-reader-back:hover { color: var(--cream); border-color: var(--line-2) }
+.b-reader-title { font: 700 14px/1 "Space Grotesk",sans-serif; color: var(--cream) }
+.b-reader-sub   { font: 500 10px/1 "JetBrains Mono",monospace; color: var(--crimson); letter-spacing: 0.15em; margin-top: 4px }
+.b-reader-tools { margin-left: auto; display: flex; gap: 6px }
+.b-tool {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(245,240,225,.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 14px;
+}
+.b-tool:hover { color: var(--cream); border-color: var(--line-2) }
+.b-tool.is-active { color: var(--crimson); border-color: rgba(220,38,38,.5); background: rgba(220,38,38,.08) }
+
+.b-reader-stage { position: relative; overflow: hidden; background: #08070a; display: flex; align-items: flex-start; justify-content: center; padding: 0 }
+.b-reader-rail  { position: absolute; top: 18px; bottom: 18px; left: 18px; width: 46px; display: flex; flex-direction: column; gap: 6px; background: rgba(12,10,8,.7); padding: 8px; border: 1px solid var(--line); border-radius: 6px }
+.b-reader-thumb { width: 30px; height: 42px; border: 1px solid var(--line); border-radius: 2px; cursor: pointer; flex: 0 0 auto }
+.b-reader-thumb.is-active { border-color: var(--crimson); box-shadow: 0 0 0 2px rgba(220,38,38,.3) }
+.b-reader-pages { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0; width: 100% }
+.b-reader-page  { width: 440px; border: 1px solid var(--line); border-radius: 4px; position: relative; flex: 0 0 auto; background: #0c0a08; box-shadow: 0 4px 32px rgba(0,0,0,.6); overflow: hidden }
+.b-reader-page-num { position: absolute; top: 10px; left: 10px; font: 600 10px/1 "JetBrains Mono",monospace; color: var(--cream); padding: 4px 8px; background: rgba(0,0,0,.65); letter-spacing: 0.15em; border-radius: 3px }
+.b-reader-page-cap { position: absolute; bottom: 10px; right: 10px; font: 600 9.5px/1 "JetBrains Mono",monospace; color: rgba(245,240,225,.7); letter-spacing: 0.15em }
+
+.b-reader-bottom { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; padding: 12px 22px; border-top: 1px solid var(--line); background: rgba(12,10,8,.92); font: 500 11px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.05em }
+.b-reader-bottom .num { font: 800 16px/1 "Bricolage Grotesque",sans-serif; color: var(--crimson); letter-spacing: -0.02em }
+.b-reader-progress      { height: 4px; background: rgba(245,240,225,.08); position: relative; border-radius: 99px; overflow: hidden }
+.b-reader-progress-fill { height: 100%; background: var(--crimson); border-radius: 99px; box-shadow: 0 0 8px rgba(220,38,38,.4) }
+
+/* ── Tracked ── */
+.b-tracked { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 8px }
+.b-tracked-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(245,240,225,.02);
+}
+.b-tracked-row > :first-child { flex-shrink: 0 }
+.b-tracked-row:hover { border-color: rgba(220,38,38,.3) }
+.b-tracked-info { min-width: 0 }
+.b-tracked-name { font: 600 13px/1.2 "Space Grotesk",sans-serif; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.b-tracked-name .ct { font-family: "JetBrains Mono",monospace; font-size: 10.5px; color: var(--crimson); margin-right: 8px; font-weight: 600 }
+.b-tracked-byline { font: 500 10px/1 "JetBrains Mono",monospace; color: var(--dim); margin-top: 4px; letter-spacing: 0.04em }
+.b-tracked-tags { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap }
+.b-tag { font: 500 9px/1 "JetBrains Mono",monospace; color: var(--dim); padding: 2px 6px; background: rgba(245,240,225,.04); border-radius: 3px; letter-spacing: 0.05em }
+.b-tag.warn { color: var(--crimson); background: rgba(220,38,38,.1) }
+.b-tracked-status { font: 700 9.5px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.12em; padding: 4px 9px; border-radius: 99px; border: 1px solid var(--line); background: rgba(245,240,225,.04) }
+.b-tracked-status.warn { color: var(--crimson); border-color: rgba(220,38,38,.4); background: rgba(220,38,38,.08) }
+.b-tracked-num { font: 800 18px/1 "Bricolage Grotesque",sans-serif; color: var(--crimson); text-align: right; letter-spacing: -0.02em }
+.b-tracked-num .lbl { display: block; font: 600 9px/1 "JetBrains Mono",monospace; color: var(--dim); margin-top: 4px; letter-spacing: 0.1em }
+
+/* ── Queue ── */
+.b-queue-item { display: grid; grid-template-columns: 64px 1fr; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: rgba(245,240,225,.02) }
+.b-queue-item.active { border-color: rgba(220,38,38,.25) }
+.b-queue-body { display: flex; flex-direction: column; gap: 8px; min-width: 0 }
+.b-queue-row  { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start }
+.b-queue-name { font: 600 13px/1.2 "Space Grotesk",sans-serif; color: var(--cream) }
+.b-queue-name .ct { font-family: "JetBrains Mono",monospace; font-size: 10.5px; color: var(--crimson); margin-left: 8px; font-weight: 600 }
+.b-queue-stats { display: flex; gap: 14px; font: 500 10.5px/1 "JetBrains Mono",monospace; color: var(--dim); letter-spacing: 0.05em; margin-top: 6px; flex-wrap: wrap }
+.b-queue-stats b { color: var(--cream); font-weight: 600 }
+.b-queue-pct { font: 800 28px/1 "Bricolage Grotesque",sans-serif; color: var(--crimson); letter-spacing: -0.04em }
+
+/* ── Settings ── */
+.b-settings { display: flex; flex-direction: column; gap: 14px }
+.b-settings-tabs { display: flex; border-bottom: 1px solid var(--line); gap: 0 }
+.b-settings-tab { padding: 10px 16px; color: var(--dim); font: 600 12px/1 "Space Grotesk",sans-serif; cursor: pointer; border-bottom: 2px solid transparent; letter-spacing: 0.02em }
+.b-settings-tab.is-active { color: var(--cream); border-bottom-color: var(--crimson) }
+.b-setting { display: grid; grid-template-columns: 1fr 280px; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--line); align-items: center }
+.b-set-title { font: 700 13px/1 "Space Grotesk",sans-serif; color: var(--cream); letter-spacing: -0.005em }
+.b-set-sub   { font: 400 11.5px/1.5 "Space Grotesk",sans-serif; color: var(--dim); margin-top: 6px; max-width: 500px }
+.b-input { background: rgba(245,240,225,.04); border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; color: var(--cream); font: 500 11.5px/1 "JetBrains Mono",monospace; width: 100%; letter-spacing: 0.03em }
+.b-input:focus { outline: none; border-color: var(--crimson) }
+.b-toggle { width: 38px; height: 22px; border-radius: 99px; background: rgba(245,240,225,.08); border: 1px solid var(--line); position: relative; cursor: pointer; flex-shrink: 0 }
+.b-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 99px; background: var(--cream); transition: all .15s }
+.b-toggle.on { background: var(--crimson); border-color: var(--crimson) }
+.b-toggle.on::after { left: 18px }
+
+/* ── Logs ── */
+.b-logs { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px }
+.b-log-row { display: grid; grid-template-columns: 100px 70px 90px 1fr; gap: 14px; padding: 7px 14px; font: 500 11px/1.4 "JetBrains Mono",monospace; border-bottom: 1px solid rgba(245,240,225,.03) }
+.b-log-row:hover { background: rgba(245,240,225,.02) }
+.b-log-time { color: var(--dimmer); letter-spacing: 0.02em }
+.b-log-lvl  { font-weight: 700; font-size: 10px; letter-spacing: 0.12em; display: flex; align-items: center }
+.b-log-lvl.info  { color: #10B981 }
+.b-log-lvl.debug { color: var(--dim) }
+.b-log-lvl.warn  { color: #F59E0B }
+.b-log-lvl.error { color: var(--crimson) }
+.b-log-src  { color: var(--dim) }
+.b-log-msg  { color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* ── Search hero ── */
+.b-search-hero {
+  display: flex;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(220,38,38,.08), rgba(245,240,225,.01));
+  position: relative;
+  overflow: hidden;
+}
+.b-search-hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 90% 50%, rgba(220,38,38,.18), transparent 50%); pointer-events: none }
+.b-search-hero > * { position: relative }
+.b-search-input { flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(0,0,0,.4); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; color: var(--cream) }
+.b-search-input input { flex: 1; background: transparent; border: 0; outline: none; color: var(--cream); font: inherit; font-family: "Space Grotesk",sans-serif }
+
+.b-trending { display: flex; gap: 8px; flex-wrap: wrap }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px }
+::-webkit-scrollbar-track { background: transparent }
+::-webkit-scrollbar-thumb { background: rgba(245,240,225,.12); border-radius: 3px }
+::-webkit-scrollbar-thumb:hover { background: rgba(245,240,225,.22) }

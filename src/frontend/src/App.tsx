@@ -8,57 +8,59 @@ import { Reader } from '@/sections/Reader';
 import { Settings } from '@/sections/Settings';
 import { Logs } from '@/sections/Logs';
 import { Tracked } from '@/sections/Tracked';
-import type { View, LibraryManga, LibraryChapter } from '@/types';
-import { Toaster } from '@/components/ui/sonner';
-import { ThemeProvider } from '@/hooks/useTheme';
+import type { View } from '@/types';
+
+type Route = View;
+
+function getNow() {
+  const d = new Date();
+  return d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+}
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('dashboard');
-  const [selectedManga, setSelectedManga] = useState<LibraryManga | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<LibraryChapter | null>(null);
+  const [route, setRoute] = useState<Route>('dashboard');
+  const isReader = route === 'reader';
 
-  const handleMangaSelect = (manga: LibraryManga, chapter: LibraryChapter) => {
-    setSelectedManga(manga);
-    setSelectedChapter(chapter);
-  };
-
-  const handleViewChange = (view: View) => {
-    setCurrentView(view);
-  };
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'search':
-        return <Search />;
-      case 'queue':
-        return <Queue />;
-      case 'library':
-        return <Library onViewChange={handleViewChange} onMangaSelect={handleMangaSelect} />;
-      case 'reader':
-        return <Reader manga={selectedManga} chapter={selectedChapter} onViewChange={handleViewChange} />;
-      case 'settings':
-        return <Settings />;
-      case 'logs':
-        return <Logs />;
-      case 'tracked':
-        return <Tracked />;
-      default:
-        return <Dashboard />;
-    }
+  const screen: Record<Route, JSX.Element> = {
+    dashboard: <Dashboard />,
+    search:    <Search />,
+    tracked:   <Tracked />,
+    queue:     <Queue />,
+    library:   <Library onViewChange={setRoute} />,
+    reader:    <Reader onViewChange={setRoute} />,
+    settings:  <Settings />,
+    logs:      <Logs />,
   };
 
   return (
-    <ThemeProvider>
-      <div className="flex h-screen bg-background text-foreground">
-        <Sidebar currentView={currentView} onViewChange={handleViewChange} />
-        <main className="flex-1 overflow-auto">
-          {renderView()}
+    <div className="b-root">
+      <Sidebar currentView={route} onViewChange={setRoute} />
+      <div className="b-stage">
+        {!isReader && (
+          <div className="b-mast-bar">
+            <div className="b-issue">
+              <span>VOL <b>II</b></span>
+              <span className="pipe">·</span>
+              <span>№ <b>047</b></span>
+              <span className="pipe">·</span>
+              <span><b>{getNow()}</b></span>
+              <span className="pipe">·</span>
+              <span className="quote">"All the manga that's fit to read."</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="b-search" style={{ width: 200, padding: '6px 12px', fontSize: 11 }}>
+                <svg viewBox="0 0 24 24" style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={1.6}><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input placeholder="Quick search…" />
+              </div>
+              <div style={{ width: 30, height: 30, borderRadius: 99, background: 'linear-gradient(135deg, var(--crimson), var(--crimson-2))', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, boxShadow: '0 0 0 2px var(--ink), 0 0 12px rgba(220,38,38,.4)' }}>A</div>
+            </div>
+          </div>
+        )}
+        <main className="b-content" style={isReader ? { padding: 0, position: 'relative' } : {}}>
+          {screen[route]}
         </main>
-        <Toaster />
       </div>
-    </ThemeProvider>
+    </div>
   );
 }
 

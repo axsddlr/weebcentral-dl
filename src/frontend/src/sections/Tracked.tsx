@@ -1,249 +1,78 @@
-﻿import React, { useState, useEffect } from "react";
-import {
-  Trash2, Download, Upload, RefreshCw, Loader2,
-  BookOpen, Search, Play, CircleCheck, Eye,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
-import * as api from "@/services/api";
+import { Cover } from '@/components/Cover';
+import { SERIES, NEW_AVAILABLE } from '@/lib/mockData';
 
 export function Tracked() {
-  const [tracked, setTracked] = useState<api.TrackedManga[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [checking, setChecking] = useState(false);
-
-  const fetchTracked = async (status?: string) => {
-    try {
-      const params = status ? `?status=${encodeURIComponent(status)}` : '';
-      const data = await api.getTracked(params);
-      setTracked(data.series);
-      setTotal(data.total);
-    } catch {
-      toast.error("Failed to load tracked manga");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchTracked(statusFilter); }, [statusFilter]);
-
-  const handleRemove = async (seriesId: string) => {
-    try {
-      await api.removeTracked(seriesId);
-      setTracked(prev => prev.filter(s => s.series_id !== seriesId));
-      setTotal(prev => prev - 1);
-      toast.success("Removed from tracked");
-    } catch {
-      toast.error("Failed to remove");
-    }
-  };
-
-  const handleDownload = async (series: api.TrackedManga) => {
-    try {
-      const chapters = await api.getSeriesChapters(series.series_id);
-      if (chapters.length === 0) {
-        toast.info("No chapters found");
-        return;
-      }
-      await api.addToQueue(series.series_id, series.title, chapters.map(c => c.id));
-      toast.success(`Queued ${chapters.length} chapters for ${series.title}`);
-    } catch {
-      toast.error("Failed to queue download");
-    }
-  };
-
-  const handleImport = async () => {
-    setImporting(true);
-    try {
-      const result = await api.importTracked();
-      toast.success(`Imported ${result.added} entries (${result.skipped} skipped)`);
-      fetchTracked(statusFilter);
-    } catch {
-      toast.error("manga_list.txt not found or import failed");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleCheck = async () => {
-    setChecking(true);
-    try {
-      await api.checkTracked();
-      toast.success("Checking tracked manga for new chapters...");
-    } catch {
-      toast.error("Failed to start check");
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  const displayList = searchQuery
-    ? tracked.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.series_id.toLowerCase().includes(searchQuery.toLowerCase()))
-    : tracked;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const items = SERIES.slice(0, 7);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
+    <>
+      <div className="b-head">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tracked Manga</h1>
-          <p className="text-muted-foreground">Manage your followed series for bulk downloading</p>
+          <div className="b-eyebrow">№ 047 · WATCHLIST · 55 SERIES</div>
+          <div className="b-title">Tracked</div>
+          <div className="b-deck">Series watched for new chapters by the Docker tracker. Five have updates pending — queue them in a single click.</div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleCheck} disabled={checking}>
-            {checking ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-            Check Now
-          </Button>
-          <Button variant="outline" onClick={handleImport} disabled={importing}>
-            {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-            Import
-          </Button>
-          <Button variant="outline" onClick={() => fetchTracked(statusFilter)}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-          </Button>
+        <div className="b-headact">
+          <div className="b-byline">LAST SCAN <b>6h 12m</b> AGO</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="b-btn">
+              <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M12 16V3m0 13 5-5m-5 5-5-5M4 21h16"/></svg>
+              Import
+            </button>
+            <button className="b-btn b-btn-primary">
+              <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="currentColor"><path d="M7 4v16l13-8z"/></svg>
+              Check Now
+            </button>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">{total} Tracked Series</CardTitle>
-          <CardDescription>
-            Use the Search page to find new manga and add them, or import from manga_list.txt.
-            Run python main.py --tracked to download all.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-1 mb-3 flex-wrap">
-            {["", "reading", "downloading", "complete"].map((s) => {
-              const iconMap: Record<string, React.JSX.Element> = {
-                reading: <Eye className="h-3.5 w-3.5" />,
-                downloading: <Download className="h-3.5 w-3.5" />,
-                complete: <CircleCheck className="h-3.5 w-3.5" />,
-              };
-              return (
-                <Button
-                  key={s}
-                  size="sm"
-                  variant={statusFilter === s ? "default" : "outline"}
-                  onClick={() => setStatusFilter(s)}
-                  className="text-xs"
-                >
-                  {s ? <>{iconMap[s]} <span className="ml-1 capitalize">{s}</span></> : "All"}
-                </Button>
-              );
-            })}
-          </div>
+      <div className="b-toolbar">
+        <div className="b-pill is-active">All <span className="ct">55</span></div>
+        <div className="b-pill">Reading <span className="ct">38</span></div>
+        <div className="b-pill">New <span className="ct" style={{ color: 'var(--crimson)' }}>5</span></div>
+        <div className="b-pill">Complete <span className="ct">9</span></div>
+        <div className="b-search" style={{ maxWidth: 280, marginLeft: 'auto' }}>
+          <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="Filter tracked manga…" />
+        </div>
+      </div>
 
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Filter tracked manga..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {displayList.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>{searchQuery ? "No matching tracked manga" : "No tracked manga yet"}</p>
-              <p className="text-sm mt-1">
-                {!searchQuery && "Import from manga_list.txt to get started"}
-              </p>
-            </div>
-          ) : (
-            <ScrollArea className="h-[460px]">
-              <div className="space-y-2">
-                {displayList.map((series) => (
-                  <div
-                    key={series.series_id}
-                    className="flex items-center gap-4 p-3 rounded-md border hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="w-12 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
-                      {series.cover_url ? (
-                        <img
-                          src={series.cover_url}
-                          alt={series.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{series.title}</p>
-                        {series.status && (
-                          <span className={[
-                            "text-[10px] px-1.5 py-0.5 rounded font-medium uppercase shrink-0",
-                            series.status === 'reading' ? 'bg-blue-500/10 text-blue-500' : '',
-                            series.status === 'downloading' ? 'bg-amber-500/10 text-amber-500' : '',
-                            series.status === 'complete' ? 'bg-green-500/10 text-green-500' : '',
-                          ].join(' ')}>
-                            {series.status}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {series.series_status && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.series_status}</span>
-                        )}
-                        {series.type && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.type}</span>
-                        )}
-                        {series.release_year && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.release_year}</span>
-                        )}
-                        {series.adult && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-500">18+</span>
-                        )}
-                        {series.anime_adaptation && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500">Anime</span>
-                        )}
-                        {series.authors && series.authors.length > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{series.authors.join(", ")}</span>
-                        )}
-                        {series.tags && series.tags.slice(0, 3).map(tag => (
-                          <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/5 text-primary">{tag}</span>
-                        ))}
-                        {series.tags && series.tags.length > 3 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">+{series.tags.length - 3}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4 shrink-0">
-                      <Button size="sm" variant="outline" onClick={() => handleDownload(series)}>
-                        <Download className="h-4 w-4 mr-1" />
-                        Queue
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleRemove(series.series_id)}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-500" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+      <div className="b-tracked">
+        {items.map((s, i) => {
+          const hasNew = NEW_AVAILABLE.find((n) => n.series === s.id);
+          return (
+            <div className="b-tracked-row" key={s.id}>
+              <Cover series={s} height={84} showTitle={false} showBadge={false} />
+              <div className="b-tracked-info">
+                <div className="b-tracked-name"><span className="ct">{String(i + 1).padStart(2, '0')}.</span>{s.title}</div>
+                <div className="b-tracked-byline">BY {s.author.toUpperCase()}</div>
+                <div className="b-tracked-tags">
+                  <span className="b-tag">{s.status === 'complete' ? 'COMPLETE' : 'ONGOING'}</span>
+                  {s.tags.includes('Adult') && <span className="b-tag warn">18+</span>}
+                  {s.tags.slice(0, 3).map((t) => <span key={t} className="b-tag">{t}</span>)}
+                </div>
               </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+              <div className={'b-tracked-status' + (hasNew ? ' warn' : '')}>
+                {s.status === 'complete' ? 'COMPLETE'
+                  : s.status === 'caught-up' ? 'CAUGHT UP'
+                  : hasNew ? `+${hasNew.count} NEW`
+                  : 'READING'}
+              </div>
+              <div className="b-tracked-num">{s.read}/{s.ch}<span className="lbl">CHAPTERS</span></div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="b-btn">
+                  <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M12 3v13m0 0 5-5m-5 5-5-5M4 21h16"/></svg>
+                  Queue
+                </button>
+                <button className="b-btn">
+                  <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={1.6}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
