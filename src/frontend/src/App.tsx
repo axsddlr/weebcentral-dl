@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Dashboard } from '@/sections/Dashboard';
 import { Search } from '@/sections/Search';
@@ -21,7 +21,7 @@ function App() {
   const [route, setRoute] = useState<Route>('dashboard');
   const isReader = route === 'reader';
 
-  const screen: Record<Route, JSX.Element> = {
+  const screen: Record<Route, ReactElement> = {
     dashboard: <Dashboard />,
     search:    <Search />,
     tracked:   <Tracked />,
