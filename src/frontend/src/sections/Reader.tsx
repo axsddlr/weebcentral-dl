@@ -79,7 +79,7 @@ export function Reader({ manga, chapter, onViewChange }: ReaderProps) {
 
         {!loading && pages.length > 0 && (
           <div className="b-reader-pages">
-            {pages.map((url, i) => (
+            {pages.map((_url, i) => (
               <div key={i} className="b-reader-page" style={{ height: 'auto' }}>
                 <div className="b-reader-page-num">P.{String(i + 1).padStart(2, '0')}/{totalPages}</div>
                 <img
