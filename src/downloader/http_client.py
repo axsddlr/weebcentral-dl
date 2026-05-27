@@ -2,14 +2,16 @@
 import os
 import time
 import json as _json
+import threading
 from typing import Any
-from scrapling.fetchers import StealthyFetcher
+from scrapling.fetchers import StealthySession
 from src.logging_utils import logger
 
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
 WEEBCENTRAL_URL = "https://weebcentral.com"
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2.0
+CF_TIMEOUT_MS = 60_000   # CF solver needs >= 60s
+DEFAULT_TIMEOUT_MS = 30_000
 
 
 class _Response:
@@ -35,22 +37,39 @@ class _Response:
 
 
 class HttpClient:
+    """
+    Shared StealthySession per thread — keeps the browser alive across requests,
+    avoiding per-call browser launch overhead.
+    """
+    _local = threading.local()
+
     def __init__(self, output_dir: str):
         self.output_dir = output_dir
+
+    def _get_session(self) -> StealthySession:
+        if not getattr(self._local, "session", None):
+            self._local.session = StealthySession(
+                headless=True,
+                disable_resources=True,
+                solve_cloudflare=True,
+                block_webrtc=True,
+            )
+            self._local.session.start()
+        return self._local.session
 
     def request(self, method: str, url: str, **kwargs: Any) -> _Response:
         timeout = kwargs.pop("timeout", 30)
         extra_headers = kwargs.pop("headers", {})
+        timeout_ms = max(timeout * 1000, CF_TIMEOUT_MS)
 
         last_exc = None
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                page = StealthyFetcher.fetch(
+                session = self._get_session()
+                page = session.fetch(
                     url,
-                    headless=True,
-                    disable_resources=True,
                     extra_headers=extra_headers,
-                    timeout=timeout * 1000,
+                    timeout=timeout_ms,
                 )
                 resp = _Response(page)
                 resp.raise_for_status()
@@ -66,7 +85,17 @@ class HttpClient:
                         f"Retrying in {wait:.1f}s..."
                     )
                     time.sleep(wait)
+                    self._reset_session()
         raise last_exc
+
+    def _reset_session(self):
+        session = getattr(self._local, "session", None)
+        if session:
+            try:
+                session.close()
+            except Exception:
+                pass
+        self._local.session = None
 
     def log_not_found(self, msg: str):
         try:
@@ -77,4 +106,4 @@ class HttpClient:
             logger.warning(f"Could not write to not_found.log: {e}")
 
     def reset_scraper(self):
-        pass  # StealthyFetcher is stateless; nothing to reset
+        self._reset_session()

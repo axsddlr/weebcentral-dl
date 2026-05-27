@@ -27,6 +27,14 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
+# Install Playwright browsers required by scrapling StealthyFetcher
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1 \
+    libxfixes3 libxrandr2 libgbm1 libasound2 \
+    && rm -rf /var/lib/apt/lists/* \
+    && uv run scrapling install --force
+
 # Copy backend source and bootstrap files
 COPY src/ ./src/
 COPY server.py entrypoint.sh example.config.toml ./
