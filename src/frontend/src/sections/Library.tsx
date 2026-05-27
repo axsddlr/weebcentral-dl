@@ -95,7 +95,7 @@ export function Library({ onViewChange, onOpenReader }: LibraryProps) {
               }}>
                 <div style={{
                   width: '100%',
-                  aspectRatio: '0.7',
+                  aspectRatio: '2/3',
                   borderRadius: 2,
                   overflow: 'hidden',
                   background: '#1c1814',

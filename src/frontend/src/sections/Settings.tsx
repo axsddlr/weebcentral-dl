@@ -82,6 +82,16 @@ export function Settings() {
                 </div>
                 <input className="b-input" value={config.libraryPaths.join(', ')} onChange={(e) => update('libraryPaths', e.target.value.split(',').map(s => s.trim()).filter(Boolean))} />
               </div>
+              <div className="b-setting">
+                <div>
+                  <div className="b-set-title">Use English title</div>
+                  <div className="b-set-sub">Prefer English title when saving archives and folders.</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                  <span style={{ font: '600 10.5px/1 "JetBrains Mono",monospace', color: 'var(--dim)', letterSpacing: '0.1em' }}>{config.useEnglishTitle ? 'ON' : 'OFF'}</span>
+                  <div className={'b-toggle' + (config.useEnglishTitle ? ' on' : '')} onClick={() => update('useEnglishTitle', !config.useEnglishTitle)} />
+                </div>
+              </div>
             </>}
 
             {tab === 'download' && <>
@@ -117,6 +127,16 @@ export function Settings() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
                   <span style={{ font: '600 10.5px/1 "JetBrains Mono",monospace', color: 'var(--dim)', letterSpacing: '0.1em' }}>{config.latest ? 'LATEST ONLY' : 'ALL'}</span>
                   <div className={'b-toggle' + (config.latest ? ' on' : '')} onClick={() => update('latest', !config.latest)} />
+                </div>
+              </div>
+              <div className="b-setting">
+                <div>
+                  <div className="b-set-title">Sequential download</div>
+                  <div className="b-set-sub">Download pages one at a time instead of in parallel.</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                  <span style={{ font: '600 10.5px/1 "JetBrains Mono",monospace', color: 'var(--dim)', letterSpacing: '0.1em' }}>{config.sequence ? 'SEQ' : 'PARALLEL'}</span>
+                  <div className={'b-toggle' + (config.sequence ? ' on' : '')} onClick={() => update('sequence', !config.sequence)} />
                 </div>
               </div>
             </>}
