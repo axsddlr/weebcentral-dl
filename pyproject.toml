@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "CLI and Web UI for downloading manga from WeebCentral"
 requires-python = ">=3.11"
 dependencies = [
-    "cloudscraper==1.2.71",
+    "scrapling[all]>=0.4.1",
     "Pillow==12.2.0",
     "loguru==0.7.3",
     "watchdog==6.0.0",
