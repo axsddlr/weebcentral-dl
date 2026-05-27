@@ -1,4 +1,4 @@
-cloudscraper==1.2.71
+scrapling[all]>=0.4.1
 Pillow==11.3.0
 loguru==0.7.3
 watchdog==4.0.1

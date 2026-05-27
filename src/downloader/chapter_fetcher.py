@@ -13,7 +13,7 @@ class ChapterFetcher:
         series_id = series_id.upper()
         url = f"{WEEBCENTRAL_URL}/series/{series_id}/full-chapter-list"
         try:
-            resp = self.http.request("GET", url)
+            resp = self.http.request("GET", url, headers={"HX-Request": "true"})
         except Exception as e:
             logger.error(
                 f"Network error fetching chapter list for {series_id}: {type(e).__name__}: {e}. "

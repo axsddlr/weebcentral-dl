@@ -61,7 +61,7 @@ class ImageDownloader:
         os.makedirs(chapter_dir, exist_ok=True)
         url = f"{WEEBCENTRAL_URL}/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
         try:
-            resp = self.http.request("GET", url)
+            resp = self.http.request("GET", url, headers={"HX-Request": "true"})
         except Exception as e:
             logger.error(f"Failed to fetch image list for chapter {chapter_num}: {e}")
             return None
