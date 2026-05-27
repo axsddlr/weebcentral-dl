@@ -31,3 +31,6 @@ Kimi_Agent_*/
 test_output/
 test_api.py
 Kimi_Agent_*/
+weebcentral-handoff/*
+.playwright-mcp/*
+design/*
