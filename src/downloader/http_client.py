@@ -57,13 +57,14 @@ class HttpClient:
             self._local.session.start()
         return self._local.session
 
-    def request(self, method: str, url: str, **kwargs: Any) -> _Response:
+    def request(self, method: str, url: str, retries: int = MAX_RETRIES, **kwargs: Any) -> _Response:
         timeout = kwargs.pop("timeout", 30)
         extra_headers = kwargs.pop("headers", {})
         timeout_ms = max(timeout * 1000, CF_TIMEOUT_MS)
+        attempts = max(1, int(retries))
 
         last_exc = None
-        for attempt in range(1, MAX_RETRIES + 1):
+        for attempt in range(1, attempts + 1):
             try:
                 session = self._get_session()
                 page = session.fetch(
@@ -78,10 +79,10 @@ class HttpClient:
                 if isinstance(e, KeyboardInterrupt):
                     raise
                 last_exc = e
-                if attempt < MAX_RETRIES:
+                if attempt < attempts:
                     wait = RETRY_BACKOFF * (2 ** (attempt - 1))
                     logger.warning(
-                        f"HTTP {method} {url} failed (attempt {attempt}/{MAX_RETRIES}): {e}. "
+                        f"HTTP {method} {url} failed (attempt {attempt}/{attempts}): {e}. "
                         f"Retrying in {wait:.1f}s..."
                     )
                     time.sleep(wait)
