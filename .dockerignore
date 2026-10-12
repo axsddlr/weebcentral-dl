@@ -13,11 +13,6 @@ venv/
 .git/
 .gitignore
 
-# Node/Frontend (built files are in src/web/)
-node_modules/
-src/frontend/node_modules/
-src/frontend/dist/
-
 # IDE/Editor
 .vscode/
 .idea/

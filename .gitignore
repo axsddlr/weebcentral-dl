@@ -12,10 +12,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Node/Frontend
-node_modules/
-src/frontend/dist/
-
 # Downloads and data
 manga_downloads/
 *.log

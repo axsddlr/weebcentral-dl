@@ -1,6 +1,6 @@
 # WeebCentral Downloader
 
-Download manga from [WeebCentral](https://weebcentral.com) as `.cbz`/`.zip` archives. CLI for one-off and bulk downloads, plus a React web UI with a queue manager, local reader, and tracked series database.
+Download manga from [WeebCentral](https://weebcentral.com) as `.cbz`/`.zip` archives. A single CLI covers one-off, bulk, and tracked-series downloads, plus a headless watcher for unattended runs.
 
 ## Quick Start
 
@@ -9,10 +9,30 @@ uv sync
 python main.py "Solo Leveling"
 ```
 
-## CLI
+Downloads land in `./manga_downloads/`, one folder per series and one archive per chapter.
+
+### Docker
+
+A pre-built image is published as `ghcr.io/axsddlr/weebcentral-dl:cli`.
 
 ```bash
-# Search and download
+docker compose up -d
+```
+
+This runs one long-running service named `manga-downloader`, whose command is the headless watcher (`python -m src.watcher`). `docker-compose.yml` bind-mounts `config.toml`, `manga_list.txt`, `manga_downloads/`, and `weebcentral.db` so state lives on the host. No ports are exposed.
+
+One-off CLI run in the same image:
+
+```bash
+docker compose run --rm manga-downloader python main.py "Manga Title" -l
+```
+
+## CLI
+
+`main.py` is the entry point; every mode is a flag on it.
+
+```bash
+# Search by title and download
 python main.py "Solo Leveling"
 
 # Direct by series ID (skips search)
@@ -21,206 +41,137 @@ python main.py -id 01J76XYCPSY3C4BNPBRY8JMCBE
 # Latest chapters only
 python main.py "Solo Leveling" -l
 
-# Bulk from file (series_id=Title or bare title, one per line)
+# Specific chapters
+python main.py "Solo Leveling" -c "12,12.5,13"
+
+# Bulk file: one entry per line (series_id=Title, bare series ID, title, or # comment)
 python main.py -b manga_list.txt
 
-# Tracked database — replace manga_list.txt with SQLite
-python main.py --track-add 01J76XY... "Solo Leveling"
+# Output directory, .zip instead of .cbz, sequential image downloads
+python main.py "Solo Leveling" -o ./manga_downloads -z -s
+
+# English titles and ComicInfo.xml inside each archive
+python main.py "Solo Leveling" --en --comicinfo
+
+# Rate limiting, retries, parallelism
+python main.py "Solo Leveling" --rlc 10 --max-sleep 120 --max-retries 5 --parallel-workers 99
+
+# Tracked-series database
+python main.py --track-add 01J76XYFM1TWGNNQ2Y2T8V7E8Y "Solo Leveling"
 python main.py --track-import manga_list.txt
-python main.py --tracked            # download all tracked
-python main.py --track-list         # show tracked series
-
-# Other flags
-python main.py -z                   # .zip instead of .cbz
-python main.py -s                   # sequential (no parallel)
-python main.py --en                 # use English title
-python main.py -c "12,12.5,13"     # specific chapters
+python main.py --track-list
+python main.py --track-remove 01J76XYFM1TWGNNQ2Y2T8V7E8Y
+python main.py --tracked     # download latest chapters for every tracked series
 ```
 
-## Web UI
+Use `-v` for debug output, `--config PATH` to load a config file other than `config.toml`.
 
-```bash
-cd src/frontend && npm install && npm run build   # one-time
-python server.py                                   # http://localhost:8000
-```
-
-Pages: Dashboard, Search (typeahead dropdown), **Tracked Manga**, Download Queue, Library (local reader), Settings, Logs.
-
-### Docker
-
-Pre-built multi-arch image (amd64 + arm64):
-
-```bash
-docker pull ghcr.io/axsddlr/weebcentral-dl:ui
-```
-
-Then run with `docker-compose` (remove `build:` from compose to use the pulled image):
-
-```bash
-docker-compose up -d              # API + UI on :8000
-docker-compose --profile watcher up -d  # + auto-download watcher
-```
-
-For local builds, use `build: .` in `docker-compose.yml`.
-
-### How the Library works
-
-The Library reader scans `manga_downloads/` by default — **the same folder the downloader writes to**. Downloaded manga appear in the Library automatically. No moving files, no extra config.
-
-To also read manga collections you already have from other sources (not downloaded by this tool), mount them separately:
-
-```bash
-mkdir library
-cp -r /path/to/your/manga library/manga
-```
-
-Then add `/app/library` to `library_paths` in `config.toml`:
-
-```toml
-library_paths = ["/app/library"]
-```
-
-Or mount specific folders directly in `docker-compose.yml`:
-
-```yaml
-volumes:
-  - /path/to/manga:/app/external/manga:ro
-```
-
-The folder structure should be `<manga_series>/<vol_001.cbz or chapter.cbz>`. The Library page merges all paths into one view. Use `:ro` (read-only) for collections you don't want the downloader to modify.
-
-## Library Reader
-
-The Library page scans `manga_downloads/` (your download destination) plus any extra folders in `library_paths`. Supports `.cbz`/`.zip` archives. Reading modes: long-strip, single page, double page. Keyboard navigation, zoom, fit modes, light/dark theme.
-
-Add external collections via Settings > Library Paths (use **container paths** in Docker, **host paths** when running locally).
+| Flag | Description |
+|------|-------------|
+| `query` | Manga title to search for (positional; ignored with `-b` or `-id`) |
+| `-c`, `--chapter` | Chapters to download, e.g. `12,12.5,13` |
+| `-o`, `--output` | Output directory for downloads |
+| `-l`, `--latest` | Only chapters after the latest one already in the output directory |
+| `-z`, `--zip` | `.zip` archives instead of `.cbz` |
+| `-v`, `--verbose` | Verbose debug output |
+| `-b`, `--bulk` | Path to a text file of titles/IDs, one per line |
+| `-s`, `--sequence` | Download images in sequence (no parallel image downloads) |
+| `--rlc` | Chapters between rate-limit pauses (default: 10) |
+| `--max-sleep` | Max sleep time for rate limit/retry (default: 120) |
+| `--max-retries` | Max retries for image downloads (default: 5) |
+| `--parallel-workers` | Parallel download workers (default: 99, `1` = sequential) |
+| `-id`, `--series-id` | Direct series ID, bypasses search |
+| `--en` | Use the English title from the series page |
+| `--comicinfo` | Embed `ComicInfo.xml` in chapter archives |
+| `--config` | Path to the config file (default: `config.toml`) |
+| `--tracked` | Download latest chapters for all tracked series |
+| `--track-add` | Add a series: `--track-add SERIES_ID TITLE` |
+| `--track-remove` | Remove a series by ID |
+| `--track-list` | List all tracked series |
+| `--track-import` | Import tracked series from a file |
 
 ## Configuration
 
-Copy `example.config.toml` to `config.toml`:
+Configuration is optional — defaults apply when no file is present. To customize, copy the template:
+
+```bash
+cp example.config.toml config.toml
+```
 
 ```toml
 [downloader]
 output_dir = "./manga_downloads"
-library_paths = []       # extra folders for the Library reader
+latest = false           # only chapters newer than the latest downloaded
+sequence = false         # true = download images sequentially
+zip = true               # false = .cbz, true = .zip
 use_english_title = false
 comicinfo = false        # write ComicInfo.xml into chapter archives
-zip = false              # false = .cbz, true = .zip
-latest = false           # only new chapters
+verbose = false
 rlc = 10                 # chapters between rate-limit pauses
 max_sleep = 120          # max pause (seconds)
 max_retries = 5          # image download retries
 parallel_workers = 99    # 1 = sequential
+check_interval = 0       # tracked-mode auto-check interval, minutes (0 = off)
 ```
 
-Settings are editable from the Web UI and saved automatically.
-
-To enable ComicInfo output from the UI, turn on `ComicInfo Metadata` in Settings or set `comicinfo = true` in `config.toml`.
-
-The Settings page also includes library maintenance actions for adding archive covers and migrating legacy cover filenames in place.
+CLI flags override the file. `--config PATH` (or the `CONFIG_FILE` variable) selects a different file. Only the `[downloader]` keys shown above are read by the CLI; `example.config.toml` also ships `[external_server]` and `[ntfy]` sections that the CLI ignores.
 
 ## Watcher Mode
 
-Automatically downloads new chapters for tracked series:
+The watcher re-runs the CLI when watched files change:
 
 ```bash
-# Docker
-docker-compose --profile watcher up -d
+# File-list mode: re-download whenever manga_list.txt changes
+python -m src.watcher
 
-# Manual (env var switches to DB-tracked mode)
+# Tracked-DB mode: process tracked series, re-checking on an interval
 WATCH_TRACKED=true python -m src.watcher
 ```
 
-Without `WATCH_TRACKED`, the watcher monitors `manga_list.txt` for changes.
+- It also watches `config.toml` and reloads it on change.
+- In tracked mode, `check_interval` (minutes) in `config.toml` controls how often the tracked database is polled; `0` disables polling, so it runs only at startup and on config changes.
+- `MANGA_LIST` and `CONFIG_FILE` choose the watched files. Without `MANGA_LIST`, `manga_list.txt` must already exist in file-list mode.
+- Ctrl+C stops it.
 
-## API Authentication
-
-The Web UI can be protected with an API token to prevent unauthorized access on shared networks.
-
-### Setting up
-
-**Docker Compose (CLI):** Add env vars to a `.env` file or inline in `docker-compose.yml`:
-
-```bash
-# Create .env from the example
-cp .env.example .env
-# Edit .env and set: API_TOKEN="your-secret-token"
-
-# Or set inline in docker-compose.yml under environment:
-#   - API_TOKEN=your-secret-token
-
-# Then restart
-docker compose up -d
-```
-
-**Portainer:** Edit the container's **Environment variables** section (not the stack's) and add `API_TOKEN` with your value. Then redeploy the stack.
-
-### How it works
-
-Once `API_TOKEN` is set:
-
-| Access type | Protected? | How to authenticate |
-|-------------|-----------|-------------------|
-| Web UI (browser) | State-changing actions only | Enter token in Settings → API Authentication (sent as httpOnly cookie) |
-| HTTP API (curl) | All POST/PUT/DELETE routes | Pass `X-API-Token: your-secret-token` header |
-| WebSocket (live updates) | All WebSocket connections | Cookie sent automatically on handshake |
-| GET routes (library, reader, search) | **Not** protected | Public read access — covers, chapters, and search are open |
-| CLI / local usage | **Not** protected | Only enforced over HTTP; local Python usage is unaffected |
-
-### Browser setup
-
-Open the Web UI, go to **Settings → Advanced → API Authentication**, enter your token, and click **Login**. The backend sets an **httpOnly cookie** — JavaScript can't read it, preventing XSS-based token theft. The cookie is sent automatically with all subsequent requests and WebSocket handshakes. Click **Logout** to clear it.
-
-### API examples
-
-```bash
-# Read routes (no auth needed)
-curl http://localhost:8000/api/library
-curl http://localhost:8000/api/stats
-
-# State-changing routes (auth required)
-curl -X POST http://localhost:8000/api/library/refresh \
-  -H "X-API-Token: your-secret-token"
-
-curl -X POST http://localhost:8000/api/tracked/import \
-  -H "X-API-Token: your-secret-token"
-
-# Login (sets httpOnly cookie for browser sessions)
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"token":"your-secret-token"}' \
-  -c cookies.txt
-
-# Subsequent requests with cookie
-curl -X POST http://localhost:8000/api/library/refresh \
-  -b cookies.txt
-```
+`docker compose up -d` runs this watcher as the service command.
 
 ## Environment Variables
 
-All configuration is optional — default values are used if not set.
+All optional — defaults are used when unset.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_TOKEN` | (none) | If set, all non-GET API routes and WebSocket connections require this token |
-| `HOST` | (none) | Server hostname/domain for CORS allowlist (for remote access) |
-| `CONFIG_FILE` | `config.toml` | Path to TOML configuration file |
-| `MANGA_LIST` | `manga_list.txt` | Path to manga list file for the file-based watcher |
-| `WATCH_TRACKED` | (none) | Set to `true` to watch the SQLite-tracked database instead of a file list |
+| `CONFIG_FILE` | `config.toml` | Path to the TOML configuration file |
+| `MANGA_LIST` | `manga_list.txt` | Path to the manga list file watched in file-list mode |
+| `WATCH_TRACKED` | (unset) | `true`, `1`, or `yes` watches the SQLite tracked database instead of a file list |
 
 ## Development
 
 ```bash
-cd src/frontend && npm run dev    # Vite dev server
-cd src/frontend && npm run lint   # ESLint
-python -m pytest -q               # tests
+uv sync                                                 # create .venv and install dependencies
+uv run ruff check src/                                  # lint
+uv run python -m unittest discover -p "test_*.py" -v    # tests
 ```
+
+Dependencies are declared in `pyproject.toml` and locked in `uv.lock`; they include `scrapling[all]`, `Pillow`, `loguru`, `watchdog`, `tomli`, and `tomli-w`. `ruff` is the only dev dependency.
 
 ## Manga Utilities
 
-The manga maintenance commands now live in `src/manga_utils.py`. The top-level `manga_utils.py` file remains as a compatibility wrapper, so both of these work:
+Maintenance commands for folders you already downloaded live in `src/manga_utils.py`; the root `manga_utils.py` is a compatibility wrapper, so both entry points work:
 
 ```bash
-python manga_utils.py --help
-python -m src.manga_utils --help
+# Remove duplicate manga folders (matched by series ID); --en also renames to English titles
+python -m src.manga_utils remove-duplicates ./manga_downloads --dry-run
+python -m src.manga_utils remove-duplicates ./manga_downloads --en
+
+# Rename every folder to its English title
+python -m src.manga_utils rename-english ./manga_downloads --dry-run
+
+# Add cover images to existing archives as the first page
+python -m src.manga_utils add-covers ./manga_downloads -v
+
+# Same commands through the wrapper
+python manga_utils.py add-covers ./manga_downloads --dry-run
 ```
+
+Subcommands and flags: `remove-duplicates` (`--dry-run`, `--en`), `rename-english` (`--dry-run`, `-v`/`--verbose`), `add-covers` (`--dry-run`, `-v`/`--verbose`). `rename-english` and `remove-duplicates --en` additionally require `cloudscraper`, which `uv sync` does not install.

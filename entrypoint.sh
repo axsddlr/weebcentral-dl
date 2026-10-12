@@ -16,7 +16,6 @@ if [ -d "/app/config.toml" ]; then
         cat > "$CONFIG_FILE" <<'TOML'
 [downloader]
 output_dir = "./manga_downloads"
-library_paths = []
 latest = false
 sequence = false
 zip = false
@@ -43,7 +42,6 @@ elif [ ! -f "/app/config.toml" ]; then
         cat > "/app/config.toml" <<'TOML'
 [downloader]
 output_dir = "./manga_downloads"
-library_paths = []
 latest = false
 sequence = false
 zip = false

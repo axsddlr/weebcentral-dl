@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ui]
+    branches: [cli]
 
 env:
   REGISTRY: ghcr.io
@@ -38,5 +38,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ui
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:cli
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}

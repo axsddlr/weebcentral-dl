@@ -2,7 +2,7 @@ name: Lint
 
 on:
   pull_request:
-    branches: [ui]
+    branches: [master, cli]
 
 jobs:
   python:
@@ -14,15 +14,3 @@ jobs:
           python-version: "3.11"
       - run: uv sync --frozen --group dev
       - run: uv run ruff check src/
-
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-        working-directory: src/frontend
-      - run: npm run lint
-        working-directory: src/frontend

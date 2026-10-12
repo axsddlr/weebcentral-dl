@@ -183,7 +183,7 @@ def run_watcher():
             while True:
                 time.sleep(1)
                 if time.time() >= next_check:
-                    print(f"\n[CHECK] Auto-check interval reached — re-checking tracked manga")
+                    print("\n[CHECK] Auto-check interval reached — re-checking tracked manga")
                     manga_watcher.process_tracked()
                     next_check = time.time() + check_interval * 60
         except KeyboardInterrupt:

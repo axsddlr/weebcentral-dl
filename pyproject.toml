@@ -1,7 +1,7 @@
 [project]
 name = "weebcentral-dl"
 version = "1.0.0"
-description = "CLI and Web UI for downloading manga from WeebCentral"
+description = "CLI tool for downloading manga from WeebCentral into CBZ/ZIP archives"
 requires-python = ">=3.11"
 dependencies = [
     "scrapling[all]>=0.4.1",
@@ -9,10 +9,7 @@ dependencies = [
     "loguru>=0.7.0",
     "watchdog>=4.0.0",
     "tomli>=2.0.0",
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.30.0",
     "tomli-w>=1.0.0",
-    "aiofiles>=24.0.0",
 ]
 
 [dependency-groups]

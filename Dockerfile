@@ -1,19 +1,8 @@
-FROM node:26-alpine AS frontend-builder
-
-WORKDIR /frontend
-
-COPY src/frontend/package*.json ./
-RUN for i in 1 2 3; do echo "npm ci attempt $i"; npm ci && break || sleep 5; done
-
-COPY src/frontend/ ./
-RUN npm run build
-
-
 FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
-LABEL org.opencontainers.image.description="Web UI and CLI for downloading manga from WeebCentral as CBZ/ZIP archives"
+LABEL org.opencontainers.image.description="CLI for downloading manga from WeebCentral as CBZ/ZIP archives"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -35,12 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && uv run scrapling install --force
 
-# Copy backend source and bootstrap files
+# Copy CLI source and bootstrap files
 COPY src/ ./src/
-COPY server.py entrypoint.sh example.config.toml ./
-
-# Copy built frontend into FastAPI static web directory
-COPY --from=frontend-builder /frontend/dist/ ./src/web/
+COPY main.py entrypoint.sh example.config.toml ./
 
 # Runtime data directory + non-root user in one layer
 RUN chmod +x entrypoint.sh \
@@ -48,8 +34,6 @@ RUN chmod +x entrypoint.sh \
     && adduser --disabled-password --gecos "" --uid 1000 appuser \
     && chown -R appuser:appuser /app
 
-EXPOSE 8000
-
 # Entrypoint runs as root to fix bind-mount permissions, then drops to appuser
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "main.py", "--help"]
