@@ -96,8 +96,8 @@ class DownloaderIntegrationTests(TestCase):
             orchestrator.process_manga(title="Ignored by fake resolver")
 
             series_dir = Path(tmpdir) / series_title
-            archive_1 = series_dir / f"{series_title}-1.cbz"
-            archive_2 = series_dir / f"{series_title}-2.cbz"
+            archive_1 = series_dir / "vol_001.cbz"
+            archive_2 = series_dir / "vol_002.cbz"
 
             self.assertTrue(archive_1.exists())
             self.assertTrue(archive_2.exists())
@@ -152,7 +152,7 @@ class DownloaderIntegrationTests(TestCase):
 
             self.assertEqual(image_downloader.calls, [("CH2", "2")])
             self.assertTrue((series_dir / f"{series_title}-1.cbz").exists())
-            self.assertTrue((series_dir / f"{series_title}-2.cbz").exists())
+            self.assertTrue((series_dir / "vol_002.cbz").exists())
 
     def test_metadata_extractor_parses_series_page(self):
         http = Mock()
@@ -223,7 +223,7 @@ class DownloaderIntegrationTests(TestCase):
 
             orchestrator.process_manga(title="Ignored by fake resolver")
 
-            archive = Path(tmpdir) / series_title / f"{series_title}-1.cbz"
+            archive = Path(tmpdir) / series_title / "vol_001.cbz"
             self.assertTrue(archive.exists())
 
             with zipfile.ZipFile(archive, "r") as zf:

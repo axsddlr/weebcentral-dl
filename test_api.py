@@ -78,7 +78,7 @@ def test_image_list(downloader, chapter_id, chapter_name):
     url = f"https://weebcentral.com/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
 
     try:
-        resp = downloader.scraper.get(url)
+        resp = downloader.http.request("GET", url)
         img_urls = []
 
         # Try JSON first

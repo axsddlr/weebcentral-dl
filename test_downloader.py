@@ -124,7 +124,10 @@ class TestDownloaderInit(unittest.TestCase):
         """Test downloader initializes correctly"""
         downloader = WeebCentralDownloader(self.config)
         self.assertEqual(downloader.config, self.config)
-        self.assertIsNotNone(downloader.scraper)
+        self.assertIsNotNone(downloader.http)
+        self.assertIsNotNone(downloader.image_downloader)
+        self.assertIsNotNone(downloader.archiver)
+        self.assertIsNotNone(downloader.orchestrator)
         self.assertTrue(os.path.exists("./test_downloads"))
 
     def test_downloader_creates_output_dir(self):

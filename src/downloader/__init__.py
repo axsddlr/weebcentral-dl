@@ -62,10 +62,6 @@ class WeebCentralDownloader:
         self.title_resolver.use_english_title = value
         self.series_resolver.use_english_title = value
 
-    @property
-    def scraper(self):
-        return self.http.scraper
-
     def _request(self, method: str, url: str, **kwargs):
         return self.http.request(method, url, **kwargs)
 

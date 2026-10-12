@@ -22,10 +22,7 @@ class ImageDownloader:
         retry_count = 0
         while retry_count < self.max_retries:
             try:
-                headers = {"Referer": referer}
-                resp = self.http.scraper.get(
-                    img_url, headers=headers, stream=True, timeout=15
-                )
+                resp = self.http.request("GET", img_url, headers={"Referer": referer})
                 resp.raise_for_status()
                 filename = os.path.basename(img_url.split("?")[0])
                 if not filename:
@@ -33,8 +30,7 @@ class ImageDownloader:
                     return None
                 out_path = os.path.join(dest_folder, filename)
                 with open(out_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        f.write(chunk)
+                    f.write(resp.content)
                 logger.debug(f"Downloaded: {img_url}")
                 return out_path
             except Exception as e:
