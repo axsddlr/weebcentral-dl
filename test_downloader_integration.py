@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from src.config import DownloaderConfig
 from src.downloader.archiver import Archiver
@@ -59,6 +59,61 @@ class DownloaderIntegrationTests(TestCase):
             max_sleep=5,
             max_retries=3,
         )
+
+    def _run_two_chapter_download(self, tmpdir: str, *, rlc: int, max_sleep: int) -> Path:
+        """Drive a 2-chapter download through the real orchestrator with fakes."""
+        config = self._build_config(tmpdir)
+        config.rlc = rlc
+        config.max_sleep = max_sleep
+        series_id = "01ABCDEF1234567890ABCDEF99"
+        series_title = "Series-Title"
+        chapters = [("Chapter", "1", "CH1"), ("Chapter", "2", "CH2")]
+
+        cover_manager = Mock()
+
+        def _write_cover(_series_id, _series_title):
+            cover_dir = Path(tmpdir) / series_title
+            cover_dir.mkdir(parents=True, exist_ok=True)
+            cover_path = cover_dir / f"{series_id}-cover.jpg"
+            cover_path.write_bytes(b"cover")
+            return str(cover_path)
+
+        cover_manager.download_and_convert.side_effect = _write_cover
+        cover_manager.get_cover_image_path.side_effect = (
+            lambda requested_title: str(Path(tmpdir) / requested_title / f"{series_id}-cover.jpg")
+        )
+
+        orchestrator = DownloadOrchestrator(
+            config=config,
+            http=Mock(),
+            series_resolver=FakeSeriesResolver((series_id, series_title)),
+            chapter_fetcher=FakeChapterFetcher(chapters),
+            chapter_tracker=ChapterTracker(tmpdir),
+            image_downloader=FakeImageDownloader(),
+            cover_manager=cover_manager,
+            archiver=Archiver(cover_manager, tmpdir, use_zip=False),
+            metadata_extractor=Mock(),
+        )
+
+        orchestrator.process_manga(title="Ignored by fake resolver")
+        return Path(tmpdir) / series_title
+
+    def test_process_manga_with_rlc_zero_skips_rate_limiting(self):
+        """rlc = 0 means 'no rate limiting', not a ZeroDivisionError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            series_dir = self._run_two_chapter_download(tmpdir, rlc=0, max_sleep=120)
+
+            self.assertTrue((series_dir / "vol_001.cbz").exists())
+            self.assertTrue((series_dir / "vol_002.cbz").exists())
+
+    def test_process_manga_tolerates_max_sleep_below_backoff_floor(self):
+        """A max_sleep under the 15s floor must not raise on the rate-limit path."""
+        with tempfile.TemporaryDirectory() as tmpdir, \
+                patch("src.downloader.orchestrator.time.sleep"):
+            series_dir = self._run_two_chapter_download(tmpdir, rlc=1, max_sleep=5)
+
+            self.assertTrue((series_dir / "vol_001.cbz").exists())
+            self.assertTrue((series_dir / "vol_002.cbz").exists())
 
     def test_process_manga_creates_archives_with_cover(self):
         with tempfile.TemporaryDirectory() as tmpdir:

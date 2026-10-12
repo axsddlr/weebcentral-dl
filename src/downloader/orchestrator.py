@@ -143,8 +143,8 @@ class DownloadOrchestrator:
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
             chap_counter += 1
-            if chap_counter % self.config.rlc == 0:
-                wait = random.randint(15, self.config.max_sleep)
+            if self.config.rlc and chap_counter % self.config.rlc == 0:
+                wait = random.randint(15, max(15, self.config.max_sleep))
                 logger.info(
                     f"Rate limiting: sleeping for {wait} seconds after {chap_counter} chapters"
                 )

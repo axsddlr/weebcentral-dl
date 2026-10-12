@@ -117,6 +117,21 @@ class TestDownloadImage(unittest.TestCase):
         self.assertEqual(sleep_mock.call_count, 3)
         self.assertTrue(all(call.args[0] == 0 for call in sleep_mock.call_args_list))
 
+    def test_download_image_tolerates_max_sleep_below_the_backoff_floor(self):
+        """max_sleep < 15 must not blow up randint inside the exception handler."""
+        http = StubHttpClient(error=ConnectionRefusedError_("connection refused by peer"))
+        downloader = ImageDownloader(http, max_retries=2, max_sleep=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir, \
+                patch("src.downloader.image_downloader.time.sleep") as sleep_mock:
+            result = downloader.download_image(self.URL, tmpdir, self.REFERER)
+
+        self.assertIsNone(result)
+        self.assertEqual(http.reset_calls, 2)
+        self.assertEqual(sleep_mock.call_count, 2)
+        # The 15s floor wins over the too-small configured maximum.
+        self.assertTrue(all(call.args[0] == 15 for call in sleep_mock.call_args_list))
+
 
 if __name__ == "__main__":
     unittest.main()

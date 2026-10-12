@@ -40,7 +40,7 @@ class ImageDownloader:
                 error_text = str(e).lower()
                 if any(err in error_text
                        for err in ["beacon", "connection refused", "max retries exceeded"]):
-                    sleep_time = random.randint(15, self.max_sleep)
+                    sleep_time = random.randint(15, max(15, self.max_sleep))
                     logger.warning(f"Connection error on {img_url}. Sleeping for {sleep_time}s...")
                     time.sleep(sleep_time)
                     self.http.reset_scraper()
