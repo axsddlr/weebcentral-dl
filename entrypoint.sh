@@ -18,7 +18,7 @@ if [ -d "/app/config.toml" ]; then
 output_dir = "./manga_downloads"
 latest = false
 sequence = false
-zip = false
+zip = true
 use_english_title = false
 comicinfo = false
 rlc = 10
@@ -41,7 +41,7 @@ elif [ ! -f "/app/config.toml" ]; then
 output_dir = "./manga_downloads"
 latest = false
 sequence = false
-zip = false
+zip = true
 use_english_title = false
 comicinfo = false
 rlc = 10
