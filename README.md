@@ -47,7 +47,7 @@ python main.py "Solo Leveling" -c "12,12.5,13"
 # Bulk file: one entry per line (series_id=Title, bare series ID, title, or # comment)
 python main.py -b manga_list.txt
 
-# Output directory, .zip instead of .cbz, sequential image downloads
+# Output directory and sequential image downloads (.zip is already the default)
 python main.py "Solo Leveling" -o ./manga_downloads -z -s
 
 # English titles and ComicInfo.xml inside each archive
@@ -72,7 +72,7 @@ Use `-v` for debug output, `--config PATH` to load a config file other than `con
 | `-c`, `--chapter` | Chapters to download, e.g. `12,12.5,13` |
 | `-o`, `--output` | Output directory for downloads |
 | `-l`, `--latest` | Only chapters after the latest one already in the output directory |
-| `-z`, `--zip` | `.zip` archives instead of `.cbz` |
+| `-z`, `--zip` | Write `.zip` archives (already the default; set `zip = false` in `config.toml` for `.cbz`) |
 | `-v`, `--verbose` | Verbose debug output |
 | `-b`, `--bulk` | Path to a text file of titles/IDs, one per line |
 | `-s`, `--sequence` | Download images in sequence (no parallel image downloads) |
