@@ -13,5 +13,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --frozen
-      # 4 tests currently fail on this branch for pre-existing, unrelated reasons.
       - run: uv run python -m unittest discover -p "test_*.py" -v

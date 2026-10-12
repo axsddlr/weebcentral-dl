@@ -117,17 +117,6 @@ parallel_workers = 99
 # max_sleep = 300
 
 # ============================================================================
-# EXTERNAL MEDIA SERVER (Optional)
-# ============================================================================
-
-[external_server]
-# Automatically import downloaded chapters into an external media server
-# (Komga, Kavita, etc.). Requires httpx: pip install httpx
-# url = "http://localhost:25600"
-# api_key = "your-api-key"
-# library_id = "your-library-id"
-
-# ============================================================================
 # AUTO-CHECK INTERVAL
 # ============================================================================
 
@@ -137,12 +126,3 @@ parallel_workers = 99
 # when config.toml changes.
 # Recommended: 60 (hourly), 180 (every 3 hours), 360 (every 6 hours), 1440 (daily)
 check_interval = 0
-
-# ============================================================================
-# NOTIFICATIONS (Optional)
-# ============================================================================
-
-[ntfy]
-# ntfy.sh push notification URL (optional)
-# Example: "https://ntfy.sh/your-topic-name"
-ntfy_url = ""

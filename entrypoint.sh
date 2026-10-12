@@ -25,9 +25,6 @@ rlc = 10
 max_sleep = 120
 max_retries = 5
 parallel_workers = 99
-
-[ntfy]
-ntfy_url = ""
 TOML
     fi
     chown "$APPUSER_UID" "$CONFIG_FILE"
@@ -51,9 +48,6 @@ rlc = 10
 max_sleep = 120
 max_retries = 5
 parallel_workers = 99
-
-[ntfy]
-ntfy_url = ""
 TOML
         chown "$APPUSER_UID" "/app/config.toml"
     fi

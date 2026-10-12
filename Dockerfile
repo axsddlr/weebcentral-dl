@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy CLI source and bootstrap files
 COPY src/ ./src/
-COPY main.py entrypoint.sh example.config.toml ./
+COPY main.py manga_utils.py entrypoint.sh example.config.toml ./
 
 # Runtime data directory + non-root user in one layer
 RUN chmod +x entrypoint.sh \

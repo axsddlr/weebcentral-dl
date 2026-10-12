@@ -114,7 +114,7 @@ parallel_workers = 99    # 1 = sequential
 check_interval = 0       # tracked-mode auto-check interval, minutes (0 = off)
 ```
 
-CLI flags override the file. `--config PATH` (or the `CONFIG_FILE` variable) selects a different file. Only the `[downloader]` keys shown above are read by the CLI; `example.config.toml` also ships `[external_server]` and `[ntfy]` sections that the CLI ignores.
+CLI flags override the file. `--config PATH` (or the `CONFIG_FILE` variable) selects a different file. Only the `[downloader]` keys shown above are read by the CLI.
 
 ## Watcher Mode
 
