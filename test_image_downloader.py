@@ -343,9 +343,12 @@ class TestHtmlImageFallback(unittest.TestCase):
                 self.assertEqual(self._fallback(f'<img src="{url}">'), [url])
 
     def test_keeps_extensionless_urls_when_no_image_extension_exists(self):
+        # Relative candidates are resolved against WEEBCENTRAL_URL rather than
+        # returned as-is (a relative src is not a fetchable page URL).
         page = '<script src="/static/app.js"></script><img src="https://cdn/image?id=123">'
         self.assertEqual(
-            self._fallback(page), ["/static/app.js", "https://cdn/image?id=123"]
+            self._fallback(page),
+            ["https://weebcentral.com/static/app.js", "https://cdn/image?id=123"],
         )
 
     def test_deduplicates_while_preserving_order(self):
@@ -449,6 +452,160 @@ class TestDownloadChapterImages(unittest.TestCase):
             any("1 of 2" in m for m in warnings),
             f"expected a partial-failure warning, got {warnings}",
         )
+
+
+PLACEHOLDER_RELATIVE = "/static/images/broken_image.jpg"
+PLACEHOLDER_ABSOLUTE = "https://weebcentral.com/static/images/broken_image.jpg"
+
+
+class TestExtractImageUrlsRejectsPlaceholders(unittest.TestCase):
+    """The site's onerror placeholder must never be mistaken for a page image.
+
+    With resources disabled every <img> fetch fails, the page's own
+    ``onerror="...this.src='/static/images/broken_image.jpg'"`` fires, and the
+    serialised DOM holds 49 copies of that placeholder. Treating it as a page
+    would archive 49 copies of a 62 KB placeholder JPEG as the chapter.
+    """
+
+    def _html(self, text):
+        return ImageDownloader._extract_image_urls(
+            StubJsonResponse(json_error=ValueError("no json body"), text=text)
+        )
+
+    def test_html_relative_placeholder_is_rejected(self):
+        self.assertEqual(self._html(f'<img src="{PLACEHOLDER_RELATIVE}">'), [])
+
+    def test_html_absolute_placeholder_is_rejected(self):
+        self.assertEqual(self._html(f'<img src="{PLACEHOLDER_ABSOLUTE}">'), [])
+
+    def test_json_placeholder_is_rejected(self):
+        resp = StubJsonResponse(
+            json_value={"images": [{"src": PLACEHOLDER_ABSOLUTE}]}, text=""
+        )
+        self.assertEqual(ImageDownloader._extract_image_urls(resp), [])
+
+    def test_json_placeholder_falls_back_to_the_html_body(self):
+        """A JSON body holding only placeholders must not hide real HTML URLs."""
+        resp = StubJsonResponse(
+            json_value={"images": [{"src": PLACEHOLDER_ABSOLUTE}]},
+            text='<img src="https://hot.planeptune.us/manga/x/001.png">',
+        )
+        self.assertEqual(
+            ImageDownloader._extract_image_urls(resp),
+            ["https://hot.planeptune.us/manga/x/001.png"],
+        )
+
+    def test_mixed_document_yields_only_usable_absolute_image_urls(self):
+        """Real CDN URLs survive; placeholder, script and relative URL are handled."""
+        page = (
+            '<script src="/static/app.js"></script>'
+            f'<img src="{PLACEHOLDER_RELATIVE}" alt="Page 1">'
+            '<img src="https://hot.planeptune.us/manga/Solo-Leveling/0200-001.png" alt="Page 1">'
+            '<img src="/manga/x/001.png">'
+            '<img src="https://hot.planeptune.us/manga/Solo-Leveling/0200-002.png" alt="Page 2">'
+            f'<img src="{PLACEHOLDER_ABSOLUTE}" alt="Page 3">'
+        )
+        self.assertEqual(
+            self._html(page),
+            [
+                "https://hot.planeptune.us/manga/Solo-Leveling/0200-001.png",
+                "https://weebcentral.com/manga/x/001.png",
+                "https://hot.planeptune.us/manga/Solo-Leveling/0200-002.png",
+            ],
+        )
+
+    def test_non_http_schemes_are_dropped(self):
+        page = (
+            '<img src="data:image/png;base64,AAAA">'
+            '<img src="javascript:alert(1)">'
+            '<img src="https://cdn/ok.jpg">'
+        )
+        self.assertEqual(self._html(page), ["https://cdn/ok.jpg"])
+
+    def test_zero_usable_urls_is_logged_at_error_level(self):
+        with patch("src.downloader.image_downloader.logger") as logger_mock:
+            result = self._html(f'<img src="{PLACEHOLDER_RELATIVE}">')
+
+        self.assertEqual(result, [])
+        self.assertTrue(
+            logger_mock.error.called,
+            "an empty extraction must be reported at error level, not debug",
+        )
+
+    def test_real_urls_are_still_kept_when_no_extension_bearing_candidate_exists(self):
+        """The extensionless guard must survive placeholder filtering."""
+        page = '<img src="https://cdn/image?id=123">'
+        self.assertEqual(self._html(page), ["https://cdn/image?id=123"])
+
+
+class TestDownloadImageRefusesPlaceholder(unittest.TestCase):
+    """A placeholder URL must never reach the network or a chapter folder."""
+
+    REFERER = "https://weebcentral.com/chapters/01ABC/images?is_prev=False"
+
+    def test_download_image_refuses_placeholder_url(self):
+        http = StubHttpClient(response=StubResponse(content=b"placeholder-jpeg-bytes"))
+        downloader = ImageDownloader(http)
+
+        with tempfile.TemporaryDirectory() as tmpdir, \
+                patch("src.downloader.image_downloader.logger") as logger_mock:
+            result = downloader.download_image(PLACEHOLDER_ABSOLUTE, tmpdir, self.REFERER)
+
+            self.assertIsNone(result)
+            self.assertEqual(os.listdir(tmpdir), [], "no file may be written")
+        self.assertEqual(http.calls, [], "the placeholder must not be fetched")
+        self.assertTrue(logger_mock.error.called)
+
+    def test_download_image_refuses_relative_placeholder_url(self):
+        http = StubHttpClient(response=StubResponse(content=b"placeholder-jpeg-bytes"))
+        downloader = ImageDownloader(http)
+
+        with tempfile.TemporaryDirectory() as tmpdir, \
+                patch("src.downloader.image_downloader.logger"):
+            result = downloader.download_image(PLACEHOLDER_RELATIVE, tmpdir, self.REFERER)
+
+        self.assertIsNone(result)
+        self.assertEqual(http.calls, [])
+
+
+class TestChapterImageListRequest(unittest.TestCase):
+    """The image-list fetch is a plain request: one session serves every call.
+
+    Resource loading is now a property of the session itself
+    (``disable_resources=False``, pinned in test_http_client.py), so no caller
+    may pass a per-request transport-policy flag — that dual-session plumbing is
+    what broke sequential chapter downloads.
+    """
+
+    CHAPTER_ID = "01ABC"
+    CHAPTER_NUM = "7"
+    DIR_NAME = "vol_007"
+    OK_URL = "https://cdn/p1.jpg"
+
+    def _calls(self):
+        http = StubChapterHttpClient([self.OK_URL])
+        downloader = ImageDownloader(http, max_retries=1, max_sleep=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            downloader.download_chapter_images(
+                self.CHAPTER_ID, self.CHAPTER_NUM, tmpdir, self.DIR_NAME
+            )
+        return http.calls
+
+    def test_image_list_request_carries_the_htmx_header(self):
+        list_calls = [
+            c for c in self._calls() if StubChapterHttpClient.LIST_MARKER in c[1]
+        ]
+        self.assertEqual(len(list_calls), 1)
+        self.assertEqual(list_calls[0][2].get("headers"), {"HX-Request": "true"})
+
+    def test_no_request_carries_a_transport_policy_flag(self):
+        """Every call goes to the one session: only fetch arguments are passed."""
+        calls = self._calls()
+        page_calls = [c for c in calls if StubChapterHttpClient.LIST_MARKER not in c[1]]
+        self.assertTrue(page_calls)
+        for _method, _url, kwargs in calls:
+            self.assertLessEqual(set(kwargs), {"headers", "retries", "timeout"})
 
 
 if __name__ == "__main__":

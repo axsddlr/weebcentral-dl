@@ -5,6 +5,7 @@ import time
 import random
 import concurrent.futures
 from typing import Optional
+from urllib.parse import urljoin
 from src.logging_utils import logger
 from src.downloader.http_client import HttpClient, WEEBCENTRAL_URL
 
@@ -30,6 +31,12 @@ CONNECTION_ERROR_MARKERS = (
 # Extensions that mark a URL as a page image rather than a script/tracker.
 IMAGE_URL_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
+# The site's own broken-image fallback. Every <img> in the chapter image-list
+# partial carries onerror="...this.src='/static/images/broken_image.jpg'", and
+# that relative path resolves to a real 62 KB JPEG. Accepting it would "succeed"
+# by archiving N copies of the placeholder as the chapter.
+PLACEHOLDER_URL_MARKER = "broken_image"
+
 
 def _looks_like_image_url(url: str) -> bool:
     """True when the URL path (query/fragment stripped) ends in an image extension."""
@@ -48,6 +55,24 @@ def _dedupe(urls: list) -> list:
     return ordered
 
 
+def _usable_urls(candidates: list) -> list:
+    """Drop placeholder and non-http candidates; resolve relative URLs in place.
+
+    Order is preserved so the page sequence survives; dedupe happens later.
+    """
+    usable = []
+    for url in candidates:
+        if not isinstance(url, str) or not url:
+            continue
+        if PLACEHOLDER_URL_MARKER in url:
+            continue
+        absolute = urljoin(WEEBCENTRAL_URL, url.strip())
+        if not absolute.lower().startswith(("http://", "https://")):
+            continue
+        usable.append(absolute)
+    return usable
+
+
 class ImageDownloader:
     def __init__(self, http: HttpClient, max_retries: int = 5, max_sleep: int = 120,
                  parallel_workers: int = 99, sequence: bool = False):
@@ -58,6 +83,11 @@ class ImageDownloader:
         self.sequence = sequence
 
     def download_image(self, img_url: str, dest_folder: str, referer: str) -> Optional[str]:
+        # Last line of defence: a placeholder is never a page, so it must never be
+        # fetched or written into a chapter folder.
+        if PLACEHOLDER_URL_MARKER in (img_url or ""):
+            logger.error(f"Refusing to download placeholder image URL: {img_url}")
+            return None
         retry_count = 0
         while retry_count < self.max_retries:
             try:
@@ -97,6 +127,9 @@ class ImageDownloader:
         os.makedirs(chapter_dir, exist_ok=True)
         url = f"{WEEBCENTRAL_URL}/chapters/{chapter_id}/images?is_prev=False&current_page=1&reading_style=long_strip"
         try:
+            # No per-request resource flag: HttpClient's single session is built
+            # with disable_resources=False precisely so this partial's DOM keeps
+            # the real page URLs instead of onerror placeholders.
             resp = self.http.request("GET", url, headers={"HX-Request": "true"})
         except Exception as e:
             logger.error(f"Failed to fetch image list for chapter {chapter_num}: {e}")
@@ -155,13 +188,16 @@ class ImageDownloader:
     def _extract_image_urls(resp) -> list:
         try:
             data = resp.json()
-            srcs = [img.get("src") for img in data.get("images", []) if img.get("src")]
+            srcs = _usable_urls(
+                [img.get("src") for img in data.get("images", []) if img.get("src")]
+            )
             if srcs:
                 logger.debug(f"Found {len(srcs)} images via JSON API")
                 return srcs
+            logger.debug("JSON API returned no usable image URLs, falling back to HTML")
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             logger.debug(f"JSON API failed for images, falling back to HTML: {e}")
-        candidates = re.findall(r'src="([^"]+)"', resp.text)
+        candidates = _usable_urls(re.findall(r'src="([^"]+)"', resp.text))
         image_candidates = [url for url in candidates if _looks_like_image_url(url)]
         if image_candidates:
             srcs = _dedupe(image_candidates)
@@ -172,9 +208,14 @@ class ImageDownloader:
             )
         else:
             # No image-extension URL at all: never drop the page's real images,
-            # so fall back to every candidate.
+            # so fall back to every usable candidate.
             srcs = _dedupe(candidates)
             logger.debug(
                 f"Found {len(srcs)} URLs via HTML parsing (no image extensions found)"
+            )
+        if not srcs:
+            logger.error(
+                "Image list extraction produced no usable page URLs (all candidates "
+                "were placeholders, relative-but-unresolvable, or non-http)"
             )
         return srcs
