@@ -3,6 +3,7 @@ name: Lint
 on:
   pull_request:
     branches: [master, cli]
+  workflow_dispatch:
 
 jobs:
   python:
