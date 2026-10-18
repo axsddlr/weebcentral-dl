@@ -155,6 +155,21 @@ uv run python -m unittest discover -p "test_*.py" -v    # tests
 
 Dependencies are declared in `pyproject.toml` and locked in `uv.lock`; they include `scrapling[all]`, `Pillow`, `loguru`, `watchdog`, `tomli`, and `tomli-w`. `ruff` is the only dev dependency.
 
+### Scraping smoke probe
+
+`scrape_probe.py` drives the real scrape path and reports, per operation, success, latency, browser-session count and whether the result is identical across repeated runs. It needs the Playwright browsers (`uv run scrapling install` once) and hits weebcentral.com for real.
+
+```bash
+uv run python scrape_probe.py --mode read --iterations 3     # series page, chapter list, metadata
+uv run python scrape_probe.py --mode images --iterations 3   # image list + 3 page downloads
+uv run python scrape_probe.py --mode chapter --workers 4     # one full chapter, parallel
+uv run python scrape_probe.py --mode chapter --workers 1     # one full chapter, sequential (-s path)
+uv run python scrape_probe.py --mode sessions --workers 4    # sessions created by 4 threads
+uv run python scrape_probe.py --series-id <ID> --mode images # same checks against another series
+```
+
+It exits non-zero if any operation fails, so it can gate a release, and `--json PATH` writes the full report. If it reports `extracted=1` or a `broken_image` URL, the scrape is regressing — see the comment on `disable_resources` in `src/downloader/http_client.py`.
+
 ## Manga Utilities
 
 Maintenance commands for folders you already downloaded live in `src/manga_utils.py`; the root `manga_utils.py` is a compatibility wrapper, so both entry points work:
